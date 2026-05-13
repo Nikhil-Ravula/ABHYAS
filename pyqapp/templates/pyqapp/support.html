@@ -1,0 +1,113 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support - ABHYAS</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="nav-brand">
+                <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+                <span>ABHYAS</span>
+            </a>
+            <div class="hamburger"
+                onclick="this.classList.toggle('active'); document.getElementById('navLinks').classList.toggle('active');">
+                <span></span><span></span><span></span>
+            </div>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                <li><a href="{% url 'profile' %}">Profile</a></li>
+                <li><a href="{% url 'logout' %}" style="color: var(--danger);">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="container dashboard">
+            <div class="dashboard-header animate-up">
+                <h1><i class="fas fa-headset" style="color:var(--accent)"></i> Help & Support</h1>
+                <p class="welcome-text">Report missing papers or technical issues.</p>
+            </div>
+
+            {% if messages %}
+            {% for message in messages %}
+            <div class="toast toast-{{ message.tags }}" style="position: static; margin-bottom: 1rem; width: 100%;">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+
+            <div class="grid-2-1 animate-up-delay">
+                <div class="card glass">
+                    <h3><i class="fas fa-plus-circle"></i> Raise a Ticket</h3>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label>Issue Subject</label>
+                            <input type="text" name="subject" class="form-control"
+                                placeholder="e.g. Missing 2022 Java Paper" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea name="description" class="form-control" rows="4" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-accent" style="width:100%">Submit Ticket</button>
+                    </form>
+                </div>
+
+                <div class="card glass">
+                    <h3><i class="fas fa-history"></i> My Tickets</h3>
+                    <div style="margin-top: 15px;">
+                        {% for t in tickets %}
+                        <div
+                            style="background: rgba(0,0,0,0.15); border-radius: 10px; padding: 16px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.06);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+                                <strong style="font-size: 0.95rem;">{{ t.subject }}</strong>
+                                <span
+                                    class="paper-badge {% if t.status == 'open' %}badge-type{% elif t.status == 'resolved' %}badge-branch{% else %}badge-type{% endif %}"
+                                    style="font-size: 0.75rem;">
+                                    {{ t.status|upper }}
+                                </span>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;">{{ t.description }}</p>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">{{ t.created_at|date:"d M, Y · h:i A" }}</span>
+
+                            {% if t.replies.all %}
+                            <div
+                                style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
+                                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;"><i
+                                        class="fas fa-comments"></i> Replies</p>
+                                {% for reply in t.replies.all %}
+                                <div
+                                    style="padding: 12px; background: rgba(108,99,255,0.08); border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+                                    <div
+                                        style="font-weight: 600; font-size: 0.8rem; color: #8B83FF; margin-bottom: 4px;">
+                                        <i class="fas fa-shield-halved"></i> {{ reply.author.username }}
+                                    </div>
+                                    <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6;">{{ reply.message }}</div>
+                                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">{{ reply.created_at|date:"d M, Y · h:i A" }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <p style="color: var(--text-muted); text-align: center; padding: 20px;">No tickets found.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+</body>
+
+</html>

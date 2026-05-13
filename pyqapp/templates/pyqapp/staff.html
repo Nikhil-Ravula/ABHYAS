@@ -1,0 +1,350 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard - ABHYAS</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="nav-brand">
+                <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+                <span>ABHYAS</span>
+            </a>
+            <div class="hamburger"
+                onclick="this.classList.toggle('active'); document.getElementById('navLinks').classList.toggle('active');">
+                <span></span><span></span><span></span>
+            </div>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="{% url 'logout' %}" style="color: var(--danger);">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="container dashboard">
+            <div class="dashboard-header animate-up">
+                <div>
+                    <h1><i class="fas fa-chalkboard-teacher" style="color:var(--secondary)"></i> Staff Dashboard</h1>
+                    <p class="welcome-text">Welcome, <strong>{{ user.username }}</strong></p>
+                </div>
+            </div>
+
+            <div class="stats-row animate-up-delay">
+                <div class="stat-card card">
+                    <div class="stat-number">{{ papers.count }}</div>
+                    <div class="stat-label"><i class="fas fa-file-alt"></i> My Uploads</div>
+                </div>
+            </div>
+
+            <div class="tab-nav animate-up-delay-2">
+                <button class="tab-btn active" onclick="switchTab('upload-paper')"><i
+                        class="fas fa-cloud-upload-alt"></i> Upload PYQ</button>
+                <button class="tab-btn" onclick="switchTab('upload-iq')"><i class="fas fa-star"></i> Upload Important
+                    Questions</button>
+                <button class="tab-btn" onclick="switchTab('my-papers')"><i class="fas fa-folder-open"></i> My Uploads
+                    ({{ papers.count }})</button>
+            </div>
+
+            <div class="tab-content active" id="tab-upload-paper">
+                <div class="card upload-form">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-cloud-upload-alt" style="color:var(--secondary)"></i>
+                            Upload Question Paper</h3>
+                    </div>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Subject</label>
+                                <input type="text" name="subject" class="form-control" placeholder="e.g. Mathematics"
+                                    required>
+                            </div>
+                            <div class="form-group">
+                                <label>Year</label>
+                                <input type="number" name="year" class="form-control" placeholder="e.g. 2024" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Regulation</label>
+                                <select name="regulation" class="form-control" required>
+                                    <option value="R02">R02</option>
+                                    <option value="R05">R05</option>
+                                    <option value="R07">R07</option>
+                                    <option value="R09">R09</option>
+                                    <option value="R13">R13</option>
+                                    <option value="R15">R15</option>
+                                    <option value="R16">R16</option>
+                                    <option value="R18">R18</option>
+                                    <option value="R22" selected>R22</option>
+                                    <option value="R25">R25</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Type</label>
+                                <select name="type" class="form-control" required>
+                                    <option value="regular">Regular</option>
+                                    <option value="supply">Supply</option>
+                                    <option value="mid">Mid</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Branch</label>
+                                <div class="branch-checkboxes">
+                                    {% for b in branches %}
+                                    <label class="checkbox-item"><input type="checkbox" name="branch" value="{{ b }}">
+                                        {{ b }}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-hashtag" style="color:var(--accent)"></i> Hashtags</label>
+                            <input type="text" name="hashtags" class="form-control" placeholder="e.g. java,oopj">
+                        </div>
+                        <div class="form-group">
+                            <label>File (PDF, Image, Doc)</label>
+                            <div class="file-upload">
+                                <input type="file" name="paper_file" required>
+                                <div class="upload-text">Click to upload or drag and drop</div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success" style="width:100%"><i class="fas fa-upload"></i>
+                            Upload Paper</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-upload-iq">
+                <div class="card upload-form">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-star" style="color:var(--accent)"></i> Upload Important
+                            Questions</h3>
+                    </div>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="upload_iq" value="1">
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Subject</label>
+                                <input type="text" name="subject" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Regulation</label>
+                                <select name="regulation" class="form-control" required>
+                                    <option value="R02">R02</option>
+                                    <option value="R05">R05</option>
+                                    <option value="R07">R07</option>
+                                    <option value="R09">R09</option>
+                                    <option value="R13">R13</option>
+                                    <option value="R15">R15</option>
+                                    <option value="R16">R16</option>
+                                    <option value="R18">R18</option>
+                                    <option value="R22" selected>R22</option>
+                                    <option value="R25">R25</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Unit (1-5)</label>
+                                <input type="number" name="unit" class="form-control" min="1" max="5" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Question Type</label>
+                                <select name="type" class="form-control" required>
+                                    <option value="short">Short Answer</option>
+                                    <option value="long">Long Answer</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group" style="width:100%">
+                                <label>Branch</label>
+                                <div class="branch-checkboxes">
+                                    {% for b in branches %}
+                                    <label class="checkbox-item"><input type="checkbox" name="branch" value="{{ b }}">
+                                        {{ b }}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Hashtags</label>
+                            <input type="text" name="hashtags" class="form-control" placeholder="e.g. java, oopj">
+                        </div>
+
+                        <hr>
+                        <div id="questions-container">
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="color:var(--accent); font-weight:bold;">Questions</label>
+                            </div>
+
+                            <div id="q-rows">
+                                <!-- JS will populate -->
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-outline"
+                            style="margin-bottom:20px; width:100%; border:1px dashed var(--border); color:var(--text-light)"
+                            onclick="addMoreQuestions()"><i class="fas fa-plus"></i> Add More Questions</button>
+
+                        <button type="submit" class="btn btn-success" style="width:100%"><i class="fas fa-upload"></i>
+                            Upload Important Questions</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-my-papers">
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Year</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in papers %}
+                            <tr>
+                                <td>{{ p.subject }}</td>
+                                <td>{{ p.year }}</td>
+                                <td><span class="paper-badge badge-type">{{ p.paper_type }}</span></td>
+                                <td style="display: flex; gap: 8px;">
+                                    <a href="/view-paper/{{ p.id }}/" target="_blank" class="icon-btn icon-btn-view"
+                                        title="View"><i class="fas fa-eye"></i></a>
+                                    <a href="/download-paper/{{ p.id }}/" class="icon-btn" style="color:var(--success);"
+                                        title="Download"><i class="fas fa-download"></i></a>
+                                    <form method="POST" action="{% url 'delete_paper' p.id %}"
+                                        onsubmit="return confirm('Are you sure you want to delete this paper?');"
+                                        style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="icon-btn"
+                                            style="color:var(--danger); border:none; background:none;" title="Delete"><i
+                                                class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4">No papers uploaded yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-wrapper" style="margin-top: 30px;">
+                    <h3 style="margin-bottom: 15px; color: var(--accent);"><i class="fas fa-star"></i> My Important
+                        Questions</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Regulation</th>
+                                <th>Unit</th>
+                                <th>Type</th>
+                                <th>Questions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for iq in my_iqs %}
+                            <tr>
+                                <td>{{ iq.subject }}</td>
+                                <td>{{ iq.regulation }}</td>
+                                <td>Unit {{ iq.unit }}</td>
+                                <td><span class="paper-badge badge-type">{{ iq.question_type }}</span></td>
+                                <td style="text-align:center;">{{ iq.q_count }}</td>
+                                <td style="display: flex; gap: 8px;">
+                                    <!-- Download IQ PDF -->
+                                    <a href="/download-iq-pdf/?search={{ iq.subject }}&unit={{ iq.unit }}&type={{ iq.question_type }}"
+                                        class="icon-btn" style="color:var(--success);" title="Download PDF"><i
+                                            class="fas fa-download"></i></a>
+
+                                    <!-- Delete IQ Group -->
+                                    <form method="POST" action="{% url 'delete_iq' %}"
+                                        onsubmit="return confirm('Are you sure you want to delete these questions?');"
+                                        style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="subject" value="{{ iq.subject }}">
+                                        <input type="hidden" name="unit" value="{{ iq.unit }}">
+                                        <input type="hidden" name="type" value="{{ iq.question_type }}">
+                                        <button type="submit" class="icon-btn"
+                                            style="color:var(--danger); border:none; background:none;" title="Delete"><i
+                                                class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6">No important questions uploaded yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        let qCount = 0;
+        function addMoreQuestions() {
+            const container = document.getElementById('q-rows');
+            const toAdd = (qCount === 0) ? 10 : 5; // initially 10, then 5 at a time
+
+            for (let i = 1; i <= toAdd; i++) {
+                qCount++;
+                const div = document.createElement('div');
+                div.className = 'form-row';
+                div.style.alignItems = 'flex-start';
+                div.style.marginBottom = '15px';
+                div.style.paddingBottom = '15px';
+                div.style.borderBottom = '1px solid var(--border)';
+
+                div.innerHTML = `
+                <div style="width:50px; font-weight:bold; padding-top:10px;">Q${qCount}.</div>
+                <div class="form-group" style="flex:2; margin-bottom:0;">
+                    <textarea name="question_${qCount}" class="form-control" rows="2" placeholder="Question Text (Optional)"></textarea>
+                </div>
+                <div class="form-group" style="flex:1; margin-bottom:0; margin-left:15px;">
+                    <input type="file" name="file_${qCount}" class="form-control" style="font-size:12px;">
+                    <small style="color:var(--text-light)">Optional File/Image</small>
+                </div>
+            `;
+                container.appendChild(div);
+            }
+        }
+
+        // Initialize 10 questions
+        document.addEventListener('DOMContentLoaded', () => {
+            addMoreQuestions();
+        });
+    </script>
+
+
+</body>
+
+</html>

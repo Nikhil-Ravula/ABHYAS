@@ -1,0 +1,368 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - ABHYAS</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="nav-brand">
+                <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+                <span>ABHYAS</span>
+            </a>
+            <div class="hamburger"
+                onclick="this.classList.toggle('active'); document.getElementById('navLinks').classList.toggle('active');">
+                <span></span><span></span><span></span>
+            </div>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="{% url 'support' %}">Support</a></li>
+                <li><a href="{% url 'profile' %}">Profile</a></li>
+                <li><a href="{% url 'logout' %}" style="color: var(--danger);">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="container dashboard">
+            <div class="dashboard-header animate-up">
+                <div>
+                    <h1><i class="fas fa-user-graduate" style="color:var(--secondary)"></i> Student Dashboard</h1>
+                    <p class="welcome-text">Hello, <strong>{{ user.username }}</strong>! Search for questions below.</p>
+                </div>
+            </div>
+
+            <div class="tab-nav animate-up-delay">
+                <button class="tab-btn active" onclick="switchTab('pyq')"><i class="fas fa-file-alt"></i> PYQ
+                    Portal</button>
+                <button class="tab-btn" onclick="switchTab('iq')"><i class="fas fa-star"></i> Important
+                    Questions</button>
+            </div>
+
+            <div class="tab-content active" id="tab-pyq">
+                <div class="search-section animate-up-delay">
+                    <div class="search-bar">
+                        <input type="text" class="form-control" id="searchHashtag" placeholder="🔍 Search by subject"
+                            oninput="searchPapers()">
+                        <button class="btn btn-primary" onclick="searchPapers()"><i class="fas fa-search"></i>
+                            Search</button>
+                    </div>
+
+                    <div class="filter-panel">
+                        <div class="filter-group">
+                            <label><i class="fas fa-calendar"></i> Year</label>
+                            <select id="filterYear" onchange="searchPapers()">
+                                <option value="">All Years</option>
+                                {% for year in years %}
+                                <option value="{{ year }}">{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-tag"></i> Type</label>
+                            <select id="filterType" onchange="searchPapers()">
+                                <option value="">All Types</option>
+                                <option value="regular">Regular</option>
+                                <option value="supply">Supply</option>
+                                <option value="mid">Mid</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-code-branch"></i> Branch</label>
+                            <select id="filterBranch" onchange="searchPapers()">
+                                <option value="">All Branches</option>
+                                <option value="CSE">CSE</option>
+                                <option value="ECE">ECE</option>
+                                <option value="IT">IT</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-book"></i> Regulation</label>
+                            <select id="filterRegulation" onchange="searchPapers()">
+                                <option value="">All Regulations</option>
+                                <option value="R02">R02</option>
+                                <option value="R05">R05</option>
+                                <option value="R07">R07</option>
+                                <option value="R09">R09</option>
+                                <option value="R13">R13</option>
+                                <option value="R15">R15</option>
+                                <option value="R16">R16</option>
+                                <option value="R18">R18</option>
+                                <option value="R22">R22</option>
+                                <option value="R25">R25</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" style="flex:0;">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-secondary btn-sm" onclick="resetFilters()"><i
+                                    class="fas fa-undo"></i> Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="resultsArea" class="animate-up-delay-2">
+                    <div class="empty-state" id="initialState">
+                        <div class="empty-icon">🔍</div>
+                        <h3>Search for Question Papers</h3>
+                        <p>Enter a subject name or use filters to find papers.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-iq">
+                <div class="search-section animate-up-delay">
+                    <div class="search-bar">
+                        <input type="text" class="form-control" id="searchIq" placeholder="🔍 Search by subject"
+                            oninput="searchIq()">
+                        <button class="btn btn-primary" onclick="searchIq()"><i class="fas fa-search"></i>
+                            Search</button>
+                    </div>
+
+                    <div class="filter-panel">
+                        <div class="filter-group">
+                            <label><i class="fas fa-layer-group"></i> Unit</label>
+                            <select id="filterIqUnit" onchange="searchIq()">
+                                <option value="">All Units</option>
+                                <option value="1">Unit 1</option>
+                                <option value="2">Unit 2</option>
+                                <option value="3">Unit 3</option>
+                                <option value="4">Unit 4</option>
+                                <option value="5">Unit 5</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-tag"></i> Type</label>
+                            <select id="filterIqType" onchange="searchIq()">
+                                <option value="">All Types</option>
+                                <option value="short">Short Answer</option>
+                                <option value="long">Long Answer</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" style="flex:0;">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-secondary btn-sm" onclick="resetIqFilters()"><i
+                                    class="fas fa-undo"></i> Reset</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="iqResultsArea" class="animate-up-delay-2">
+                    <!-- Grouped rendering -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── PDF Viewer Modal ─────────────────────────────────────────────────── -->
+    <div id="pdfViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+        background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center;">
+        <div
+            style="position:relative; width:95%; height:95%; max-width:1000px; background:var(--bg-card); border-radius:var(--radius-lg); overflow:hidden; box-shadow: 0 0 40px rgba(0,0,0,0.5);">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 1rem; background:var(--bg-card-hover); border-bottom:1px solid var(--border);">
+                <span id="pdfViewerTitle" style="font-weight:600; font-size:0.95rem;"><i class="fas fa-file-pdf"
+                        style="color:var(--danger);"></i> Viewing Paper</span>
+                <button onclick="closeViewer()"
+                    style="background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer; padding:0 0.5rem;"
+                    title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <iframe id="pdfViewerFrame" src="" style="width:100%; height:calc(100% - 50px); border:none;"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // ── PDF Viewer Modal ────────────────────────────────────────────────
+        function viewPaper(paperId, paperTitle) {
+            const modal = document.getElementById('pdfViewerModal');
+            const frame = document.getElementById('pdfViewerFrame');
+            const title = document.getElementById('pdfViewerTitle');
+            title.innerHTML = '<i class="fas fa-file-pdf" style="color:var(--danger);"></i> ' + paperTitle;
+            frame.src = '/view-paper/' + paperId + '/';
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
+        }
+
+        function closeViewer() {
+            const modal = document.getElementById('pdfViewerModal');
+            const frame = document.getElementById('pdfViewerFrame');
+            frame.src = ''; // Stop loading
+            modal.style.display = 'none';
+            document.body.style.overflow = ''; // Restore scroll
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeViewer();
+        });
+
+        // Close modal on clicking outside the viewer
+        document.getElementById('pdfViewerModal').addEventListener('click', function (e) {
+            if (e.target === this) closeViewer();
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+            if (tabName === 'iq' && document.getElementById('iqResultsArea').innerHTML.trim() === '') {
+                searchIq();
+            }
+        }
+
+        async function searchPapers() {
+            const hashtag = document.getElementById('searchHashtag').value.trim();
+            const year = document.getElementById('filterYear').value;
+            const type = document.getElementById('filterType').value;
+            const branch = document.getElementById('filterBranch').value;
+            const regulation = document.getElementById('filterRegulation').value;
+            const resultsArea = document.getElementById('resultsArea');
+
+            if (!hashtag && !year && !type && !branch && !regulation) {
+                resultsArea.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><h3>Search for Question Papers</h3><p>Enter hashtags or use filters to find papers.</p></div>`;
+                return;
+            }
+
+            resultsArea.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const params = new URLSearchParams({ hashtag, year, type, branch, regulation });
+                const response = await fetch('?' + params.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const papers = await response.json();
+
+                if (papers.length === 0) {
+                    resultsArea.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h3>No Papers Found</h3><p>Try different filters.</p></div>`;
+                    return;
+                }
+
+                let html = '<div class="papers-grid">';
+                papers.forEach(p => {
+                    html += `
+                <div class="paper-card card">
+                    <div class="paper-meta">
+                        <span class="paper-badge badge-year">${p.year}</span>
+                        <span class="paper-badge badge-type">${p.type}</span>
+                        <span class="paper-badge badge-branch">${escapeHtml(p.branch)}</span>
+                    </div>
+                    <h3>${escapeHtml(p.subject)}</h3>
+                    <div class="paper-info">
+                        <span><i class="fas fa-user"></i> ${escapeHtml(p.uploader)}</span>
+                        <span><i class="fas fa-calendar-alt"></i> ${p.date}</span>
+                    </div>
+                    <div class="paper-actions">
+                        <button onclick="viewPaper(${p.id}, '${escapeHtml(p.subject).replace(/'/g, "\\'")} (${p.year})')" class="btn btn-primary btn-sm"><i class="fas fa-eye"></i> View</button>
+                        <a href="/download-paper/${p.id}/" class="btn btn-success btn-sm"><i class="fas fa-download"></i> Download</a>
+                    </div>
+                </div>`;
+                });
+                html += '</div>';
+                resultsArea.innerHTML = html;
+            } catch (e) {
+                resultsArea.innerHTML = `<div class="empty-state"><h3>Error Loading Papers</h3></div>`;
+            }
+        }
+
+        async function searchIq() {
+            const search = document.getElementById('searchIq').value.trim();
+            const unit = document.getElementById('filterIqUnit').value;
+            const type = document.getElementById('filterIqType').value;
+            const resultsArea = document.getElementById('iqResultsArea');
+
+            if (!search) {
+                resultsArea.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><h3>Search for Important Questions</h3><p>Enter a subject or hashtag to view questions.</p></div>`;
+                return;
+            }
+
+            resultsArea.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const params = new URLSearchParams({ iq: 1, search, unit, type });
+                const response = await fetch('?' + params.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const iqs = await response.json();
+
+                if (iqs.length === 0) {
+                    resultsArea.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h3>No Important Questions Found</h3><p>Try different filters.</p></div>`;
+                    return;
+                }
+
+                let html = '';
+                let currentGroup = '';
+
+                iqs.forEach(q => {
+                    const groupKey = `${q.subject} Unit ${q.unit} - ${q.type === 'short' ? 'Short' : 'Long'} `;
+                    if (groupKey !== currentGroup) {
+                        if (currentGroup !== '') html += '</div></div>'; // close previous card-body and card
+
+                        const dlParams = new URLSearchParams({ search, unit: q.unit, type: q.type });
+                        const dlUrl = '/download-iq-pdf/?' + dlParams.toString();
+
+                        html += `
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <h3 class="card-title" style="margin: 0; color: var(--secondary); font-size: 1.1rem;"><i class="fas fa-layer-group"></i> ${groupKey}</h3>
+                        <a href="${dlUrl}" class="btn btn-primary btn-sm"><i class="fas fa-file-pdf"></i> Download PDF</a>
+                    </div>
+                    <div class="card-body" style="padding: 0;">`;
+                        currentGroup = groupKey;
+                    }
+
+                    html += `
+                <div style="padding: 15px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px;">
+                    <div style="color: var(--text-secondary); font-size: 1rem; display: flex; align-items: flex-start;">
+                        <span style="font-weight: bold; color: var(--accent); margin-right: 8px; white-space: nowrap;">Q${q.number}:</span>
+                        <span style="flex: 1; margin-top: 1px;">${q.text ? escapeHtml(q.text) : '<span style="color:var(--text-muted);">(See attached file)</span>'}</span>
+                    </div>
+                    
+                    ${q.file_url ? `
+                    <div style="margin-top: 8px; margin-left: 32px;">
+                        <a href="${q.file_url}" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 4px 10px;"><i class="fas fa-eye"></i> View</a>
+                        <a href="${q.file_url}" download class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 4px 10px; margin-left: 5px;"><i class="fas fa-download"></i> Download</a>
+                    </div>` : ''}
+                </div>`;
+                });
+                if (currentGroup !== '') html += '</div></div>'; // close last card-body and card
+
+                resultsArea.innerHTML = html;
+            } catch (e) {
+                resultsArea.innerHTML = `<div class="empty-state"><h3>Error Loading Questions</h3></div>`;
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('searchHashtag').value = '';
+            document.getElementById('filterYear').value = '';
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterBranch').value = '';
+            document.getElementById('filterRegulation').value = '';
+            searchPapers();
+        }
+
+        function resetIqFilters() {
+            document.getElementById('searchIq').value = '';
+            document.getElementById('filterIqUnit').value = '';
+            document.getElementById('filterIqType').value = '';
+            searchIq();
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+
+</html>
