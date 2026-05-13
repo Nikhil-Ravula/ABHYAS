@@ -188,6 +188,7 @@ cloudinary.config(
     api_key    = os.environ.get('CLOUDINARY_API_KEY'),
     api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
     secure     = True,  # Always use HTTPS URLs
+    api_proxy  = os.environ.get('CLOUDINARY_API_PROXY'),  # Required for PythonAnywhere free plan
 )
 
 # Validate Cloudinary configuration in production
