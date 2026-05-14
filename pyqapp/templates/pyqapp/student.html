@@ -323,14 +323,17 @@
                 <div style="padding: 15px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px;">
                     <div style="color: var(--text-secondary); font-size: 1rem; display: flex; align-items: flex-start;">
                         <span style="font-weight: bold; color: var(--accent); margin-right: 8px; white-space: nowrap;">Q${q.number}:</span>
-                        <span style="flex: 1; margin-top: 1px;">${q.text ? escapeHtml(q.text) : '<span style="color:var(--text-muted);">(See attached file)</span>'}</span>
+                        <span style="flex: 1; margin-top: 1px;">${q.text ? escapeHtml(q.text) : (q.is_image ? '' : '<span style="color:var(--text-muted);">(See attached file)</span>')}</span>
                     </div>
                     
-                    ${q.file_url ? `
+                    ${q.file_url ? (q.is_image ? `
+                    <div style="margin-top: 10px; margin-left: 32px; text-align: left;">
+                        <img src="${q.file_url}" alt="Question Image" style="max-width: 100%; max-height: 400px; border-radius: 6px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    </div>` : `
                     <div style="margin-top: 8px; margin-left: 32px;">
                         <a href="${q.file_url}" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 4px 10px;"><i class="fas fa-eye"></i> View</a>
                         <a href="${q.file_url}" download class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 4px 10px; margin-left: 5px;"><i class="fas fa-download"></i> Download</a>
-                    </div>` : ''}
+                    </div>`) : ''}
                 </div>`;
                 });
                 if (currentGroup !== '') html += '</div></div>'; // close last card-body and card

@@ -25,7 +25,8 @@ from django.views.decorators.http import require_http_methods
 from django.utils.html import escape
 
 import requests as http_requests
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
+from reportlab.lib.utils import ImageReader
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
@@ -335,6 +336,12 @@ def student_dashboard(request):
             
             results = []
             for q in iqs:
+                is_image = False
+                if q.file:
+                    ext = q.file.name.lower().split('.')[-1]
+                    if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                        is_image = True
+
                 results.append({
                     'subject': q.subject,
                     'unit': q.unit,
@@ -343,6 +350,7 @@ def student_dashboard(request):
                     'text': escape(q.question_text),
                     'file_url': q.file.url if q.file else '',
                     'original_filename': q.original_filename,
+                    'is_image': is_image,
                     'uploader': q.uploaded_by.username,
                     'date': q.uploaded_at.strftime('%d %b, %Y')
                 })
@@ -857,15 +865,51 @@ def download_iq_pdf(request):
     story.append(Spacer(1, 12))
 
     for q in iqs:
-        text = q.question_text if q.question_text else "(See attached file)"
+        # Determine fallback text if no question text is provided
+        if q.question_text:
+            text = q.question_text
+        elif q.file:
+            ext = q.file.name.lower().split('.')[-1]
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                text = ""  # No text needed, image will be rendered below
+            else:
+                text = "(See attached file)"
+        else:
+            text = ""
+            
         # Normalize the text to convert mathematical italic characters (like 𝑖, 𝑥) to standard ASCII
         text = unicodedata.normalize('NFKC', text)
         
         # Render question number in bold + question text in unicode-safe font
-        story.append(Paragraph(
-            f"<font name='{_PDF_FONT_BOLD}'>Q{q.question_number}:</font>  {escape(text)}",
-            normal_style
-        ))
+        if text:
+            q_paragraph = Paragraph(f"<font name='{_PDF_FONT_BOLD}'>Q{q.question_number}:</font>  {escape(text)}", normal_style)
+        else:
+            q_paragraph = Paragraph(f"<font name='{_PDF_FONT_BOLD}'>Q{q.question_number}:</font>", normal_style)
+        story.append(q_paragraph)
+        
+        # If there's an image file attached, embed it in the PDF
+        if q.file:
+            ext = q.file.name.lower().split('.')[-1]
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                try:
+                    img_bytes = _get_paper_content(q)
+                    if img_bytes:
+                        img_data = io.BytesIO(img_bytes)
+                        img_reader = ImageReader(img_data)
+                        iw, ih = img_reader.getSize()
+                        
+                        max_width = 400
+                        if iw > max_width:
+                            aspect = ih / float(iw)
+                            img_obj = Image(img_data, width=max_width, height=(max_width * aspect))
+                        else:
+                            img_obj = Image(img_data, width=iw, height=ih)
+                        
+                        story.append(Spacer(1, 4))
+                        story.append(img_obj)
+                except Exception as e:
+                    logger.error(f"Error embedding image for question {q.id}: {e}")
+
         story.append(Spacer(1, 6))
 
     # Add notes section
