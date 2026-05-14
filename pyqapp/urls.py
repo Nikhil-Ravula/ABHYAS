@@ -18,4 +18,6 @@ urlpatterns = [
     path('download-iq-pdf/', views.download_iq_pdf, name='download_iq_pdf'),
     path('delete-paper/<int:paper_id>/', views.delete_paper, name='delete_paper'),
     path('delete-iq/', views.delete_iq, name='delete_iq'),
+    path('edit-paper/<int:paper_id>/', views.edit_paper, name='edit_paper'),
+    path('edit-iq/', views.edit_iq, name='edit_iq'),
 ]

@@ -722,6 +722,8 @@
                                         <a href="/download-paper/{{ p.id }}/" class="icon-btn"
                                             style="color:var(--success);" title="Download"><i
                                                 class="fas fa-download"></i></a>
+                                        <button type="button" class="icon-btn" style="color:var(--secondary); border:none; background:none;" title="Edit"
+                                            onclick="openEditPaperModal({{ p.id }}, '{{ p.subject|escapejs }}', {{ p.year }}, '{{ p.paper_type }}', '{{ p.regulation }}', '{{ p.hashtags|escapejs }}', '{{ p.branch|escapejs }}')"><i class="fas fa-pen"></i></button>
                                         <form method="POST" action="{% url 'delete_paper' p.id %}"
                                             onsubmit="return confirm('Are you sure you want to delete this paper?');"
                                             style="display:inline;">
@@ -771,6 +773,10 @@
                                         <a href="/download-iq-pdf/?search={{ iq.subject }}&unit={{ iq.unit }}&type={{ iq.question_type }}"
                                             class="icon-btn" style="color:var(--success);" title="Download PDF"><i
                                                 class="fas fa-download"></i></a>
+
+                                        <!-- Edit IQ Group -->
+                                        <button type="button" class="icon-btn" style="color:var(--secondary); border:none; background:none;" title="Edit"
+                                            onclick="openEditIQModal('{{ iq.subject|escapejs }}', {{ iq.unit }}, '{{ iq.question_type }}', '{{ iq.regulation }}', '{{ iq.hashtags|escapejs }}', '{{ iq.branch|escapejs }}')"><i class="fas fa-pen"></i></button>
 
                                         <form method="POST" action="{% url 'delete_iq' %}"
                                             onsubmit="return confirm('Are you sure you want to delete these questions?');"
@@ -999,5 +1005,172 @@
     </script>
 
 </body>
+
+<!-- ===== Edit PYQ Modal ===== -->
+<div id="editPaperModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); max-width:600px; width:100%; max-height:90vh; overflow-y:auto; padding:30px; position:relative;">
+        <button onclick="closeEditPaperModal()" style="position:absolute; top:15px; right:15px; background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+        <h3 style="margin-bottom:20px; color:var(--text);"><i class="fas fa-pen" style="color:var(--secondary);"></i> Edit PYQ Paper</h3>
+        <form id="editPaperForm" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div class="form-group">
+                    <label>Subject</label>
+                    <input type="text" name="subject" id="ep-subject" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Year</label>
+                    <input type="number" name="year" id="ep-year" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Regulation</label>
+                    <select name="regulation" id="ep-regulation" class="form-control">
+                        <option value="R02">R02</option><option value="R05">R05</option><option value="R07">R07</option><option value="R09">R09</option><option value="R13">R13</option><option value="R15">R15</option><option value="R16">R16</option><option value="R18">R18</option><option value="R22">R22</option><option value="R25">R25</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select name="type" id="ep-type" class="form-control">
+                        <option value="regular">Regular</option>
+                        <option value="supply">Supply</option>
+                        <option value="mid">Mid</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Branch</label>
+                <div class="branch-checkboxes">
+                    {% for b in branches %}
+                    <label class="checkbox-item"><input type="checkbox" name="branch" value="{{ b }}" class="ep-branch-cb"> {{ b }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Hashtags</label>
+                <input type="text" name="hashtags" id="ep-hashtags" class="form-control" placeholder="e.g. java,oopj">
+            </div>
+            <div class="form-group">
+                <label>Replace File <small style="color:var(--text-muted);">(optional — leave empty to keep current file)</small></label>
+                <input type="file" name="paper_file" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-success" style="width:100%; margin-top:10px;"><i class="fas fa-save"></i> Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<!-- ===== Edit IQ Modal ===== -->
+<div id="editIQModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); max-width:700px; width:100%; max-height:90vh; overflow-y:auto; padding:30px; position:relative;">
+        <button onclick="closeEditIQModal()" style="position:absolute; top:15px; right:15px; background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+        <h3 style="margin-bottom:20px; color:var(--text);"><i class="fas fa-pen" style="color:var(--accent);"></i> Edit Important Questions</h3>
+        <form id="editIQForm" method="POST" action="{% url 'edit_iq' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="orig_subject" id="eiq-orig-subject">
+            <input type="hidden" name="orig_unit" id="eiq-orig-unit">
+            <input type="hidden" name="orig_type" id="eiq-orig-type">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                <div class="form-group">
+                    <label>Subject</label>
+                    <input type="text" name="subject" id="eiq-subject" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Regulation</label>
+                    <select name="regulation" id="eiq-regulation" class="form-control">
+                        <option value="R02">R02</option><option value="R05">R05</option><option value="R07">R07</option><option value="R09">R09</option><option value="R13">R13</option><option value="R15">R15</option><option value="R16">R16</option><option value="R18">R18</option><option value="R22">R22</option><option value="R25">R25</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Unit (1-5)</label>
+                    <input type="number" name="unit" id="eiq-unit" class="form-control" min="1" max="5" required>
+                </div>
+                <div class="form-group">
+                    <label>Question Type</label>
+                    <select name="type" id="eiq-type" class="form-control">
+                        <option value="short">Short Answer</option>
+                        <option value="long">Long Answer</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Branch</label>
+                <div class="branch-checkboxes">
+                    {% for b in branches %}
+                    <label class="checkbox-item"><input type="checkbox" name="branch" value="{{ b }}" class="eiq-branch-cb"> {{ b }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Hashtags</label>
+                <input type="text" name="hashtags" id="eiq-hashtags" class="form-control" placeholder="e.g. java, oopj">
+            </div>
+            <hr style="border-color:var(--border); margin:20px 0;">
+            <div style="color:var(--accent); font-weight:bold; margin-bottom:12px;"><i class="fas fa-list"></i> Questions</div>
+            <div id="eiq-questions-container"></div>
+            <button type="submit" class="btn btn-success" style="width:100%; margin-top:16px;"><i class="fas fa-save"></i> Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const IQ_MAP = {{ iq_entries_map_json|safe }};
+
+    function openEditPaperModal(id, subject, year, type, regulation, hashtags, branch) {
+        const form = document.getElementById('editPaperForm');
+        form.action = '/edit-paper/' + id + '/';
+        document.getElementById('ep-subject').value = subject;
+        document.getElementById('ep-year').value = year;
+        document.getElementById('ep-hashtags').value = hashtags;
+        const typeEl = document.getElementById('ep-type');
+        for (let o of typeEl.options) o.selected = (o.value === type);
+        const regEl = document.getElementById('ep-regulation');
+        for (let o of regEl.options) o.selected = (o.value === regulation);
+        const selectedBranches = branch ? branch.split(',') : [];
+        document.querySelectorAll('.ep-branch-cb').forEach(cb => { cb.checked = selectedBranches.includes(cb.value); });
+        document.getElementById('editPaperModal').style.display = 'flex';
+    }
+    function closeEditPaperModal() { document.getElementById('editPaperModal').style.display = 'none'; }
+
+    function openEditIQModal(subject, unit, type, regulation, hashtags, branch) {
+        document.getElementById('eiq-orig-subject').value = subject;
+        document.getElementById('eiq-orig-unit').value = unit;
+        document.getElementById('eiq-orig-type').value = type;
+        document.getElementById('eiq-subject').value = subject;
+        document.getElementById('eiq-unit').value = unit;
+        document.getElementById('eiq-hashtags').value = hashtags;
+        const typeEl = document.getElementById('eiq-type');
+        for (let o of typeEl.options) o.selected = (o.value === type);
+        const regEl = document.getElementById('eiq-regulation');
+        for (let o of regEl.options) o.selected = (o.value === regulation);
+        const selectedBranches = branch ? branch.split(',') : [];
+        document.querySelectorAll('.eiq-branch-cb').forEach(cb => { cb.checked = selectedBranches.includes(cb.value); });
+
+        const key = subject + '|' + unit + '|' + type;
+        const questions = IQ_MAP[key] || [];
+        const container = document.getElementById('eiq-questions-container');
+        container.innerHTML = '';
+        questions.forEach(q => {
+            const div = document.createElement('div');
+            div.style.cssText = 'margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--border);';
+            const escapedText = (q.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            div.innerHTML = `
+                <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <div style="width:40px; font-weight:bold; padding-top:10px; color:var(--accent);">Q${q.number}.</div>
+                    <div style="flex:1;">
+                        <textarea name="question_${q.number}" class="form-control" rows="2" placeholder="Question text">${escapedText}</textarea>
+                        ${q.file_url ? `<small style="color:var(--success); display:block; margin-top:4px;"><i class='fas fa-paperclip'></i> Current: ${q.original_filename}</small>` : ''}
+                        <input type="file" name="file_${q.number}" class="form-control" style="margin-top:6px; font-size:12px;">
+                        <small style="color:var(--text-muted);">New file (optional)</small>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+        document.getElementById('editIQModal').style.display = 'flex';
+    }
+    function closeEditIQModal() { document.getElementById('editIQModal').style.display = 'none'; }
+
+    document.getElementById('editPaperModal').addEventListener('click', function(e) { if (e.target === this) closeEditPaperModal(); });
+    document.getElementById('editIQModal').addEventListener('click', function(e) { if (e.target === this) closeEditIQModal(); });
+</script>
 
 </html>

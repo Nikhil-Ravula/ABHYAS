@@ -9,6 +9,7 @@ This module handles all request/response logic including:
 """
 
 import io
+import json
 import logging
 import os
 from django.shortcuts import render, redirect, get_object_or_404
@@ -476,18 +477,33 @@ def staff_dashboard(request):
 
     papers = Paper.objects.filter(uploaded_by=request.user).order_by('-uploaded_at')
     my_iqs = ImportantQuestionEntry.objects.filter(uploaded_by=request.user).values(
-        'subject', 'regulation', 'unit', 'question_type'
+        'subject', 'regulation', 'unit', 'question_type', 'branch', 'hashtags'
     ).annotate(
         q_count=Count('id'),
         latest_upload=Max('uploaded_at')
     ).order_by('-latest_upload')
 
+    # Full IQ entries per group (for edit modals) — keyed by "subject|unit|type"
+    iq_entries_map = {}
+    for iq in ImportantQuestionEntry.objects.filter(uploaded_by=request.user).order_by('question_number'):
+        key = f"{iq.subject}|{iq.unit}|{iq.question_type}"
+        if key not in iq_entries_map:
+            iq_entries_map[key] = []
+        iq_entries_map[key].append({
+            'number': iq.question_number,
+            'text': iq.question_text,
+            'file_url': iq.file.url if iq.file else '',
+            'original_filename': iq.original_filename,
+        })
+
     context = {
         'papers': papers,
         'my_iqs': my_iqs,
+        'iq_entries_map_json': json.dumps(iq_entries_map),
         'branches': branches_list
     }
     return render(request, 'pyqapp/staff.html', context)
+
 
 
 # ── Support & Profile ────────────────────────────────────────────────────────
@@ -672,7 +688,7 @@ def admin_log_view(request):
     unique_visitors = SiteVisit.objects.count()
 
     my_iqs = ImportantQuestionEntry.objects.filter(uploaded_by=request.user).values(
-        'subject', 'regulation', 'unit', 'question_type'
+        'subject', 'regulation', 'unit', 'question_type', 'branch', 'hashtags'
     ).annotate(
         q_count=Count('id'),
         latest_upload=Max('uploaded_at')
@@ -681,6 +697,19 @@ def admin_log_view(request):
     # Admin's own uploads (for My Uploads tab)
     papers = Paper.objects.filter(uploaded_by=request.user).order_by('-uploaded_at')
 
+    # Full IQ entries per group (for edit modals) — keyed by (subject, unit, type)
+    iq_entries_map = {}
+    for iq in ImportantQuestionEntry.objects.filter(uploaded_by=request.user).order_by('question_number'):
+        key = f"{iq.subject}|{iq.unit}|{iq.question_type}"
+        if key not in iq_entries_map:
+            iq_entries_map[key] = []
+        iq_entries_map[key].append({
+            'number': iq.question_number,
+            'text': iq.question_text,
+            'file_url': iq.file.url if iq.file else '',
+            'original_filename': iq.original_filename,
+        })
+
     context = {
         'staff_users': staff_users,
         'tickets': tickets,
@@ -688,6 +717,7 @@ def admin_log_view(request):
         'all_papers': all_papers,
         'iq_stats': iq_stats,
         'my_iqs': my_iqs,
+        'iq_entries_map_json': json.dumps(iq_entries_map),
         'branches': branches_list,
         'unique_visitors': unique_visitors,
     }
@@ -884,6 +914,110 @@ def delete_iq(request):
     else:
         messages.error(request, "Important questions not found.")
     
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+
+# ── Edit Operations ──────────────────────────────────────────────────────────
+
+@login_required
+@require_http_methods(["POST"])
+def edit_paper(request, paper_id):
+    """Edit metadata of a PYQ paper (only owner or superuser)."""
+    paper = get_object_or_404(Paper, id=paper_id)
+
+    if not (request.user.is_superuser or paper.uploaded_by == request.user):
+        messages.error(request, "You do not have permission to edit this paper.")
+        logger.warning(f"Unauthorized paper edit attempt by {request.user.username}")
+        return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+    subject = request.POST.get('subject', '').strip()
+    year = request.POST.get('year', '').strip()
+    p_type = request.POST.get('type', '').strip()
+    regulation = request.POST.get('regulation', paper.regulation)
+    hashtags = request.POST.get('hashtags', '').strip()
+    selected_branches = ",".join(request.POST.getlist('branch'))
+    new_file = request.FILES.get('paper_file')
+
+    paper.subject = subject or paper.subject
+    paper.year = int(year) if year.isdigit() else paper.year
+    paper.paper_type = p_type or paper.paper_type
+    paper.regulation = regulation
+    paper.hashtags = hashtags
+    if selected_branches:
+        paper.branch = selected_branches
+
+    if new_file:
+        is_valid, error_msg = validate_uploaded_file(new_file)
+        if not is_valid:
+            messages.error(request, f"File update failed: {error_msg}")
+            return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+        paper.file = new_file
+        paper.original_filename = new_file.name
+
+    paper.save()
+    messages.success(request, f"Paper '{paper.subject}' updated successfully.")
+    logger.info(f"User {request.user.username} edited paper ID {paper_id}")
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+
+@login_required
+@require_http_methods(["POST"])
+def edit_iq(request):
+    """Edit metadata and question texts of an IQ group (only owner or superuser)."""
+    orig_subject = request.POST.get('orig_subject', '').strip()
+    orig_unit = request.POST.get('orig_unit', '').strip()
+    orig_type = request.POST.get('orig_type', '').strip()
+
+    iqs = ImportantQuestionEntry.objects.filter(
+        subject=orig_subject,
+        unit=int(orig_unit) if orig_unit.isdigit() else 1,
+        question_type=orig_type,
+    )
+
+    if not iqs.exists():
+        messages.error(request, "Important questions not found.")
+        return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+    first_iq = iqs.first()
+    if not (request.user.is_superuser or first_iq.uploaded_by == request.user):
+        messages.error(request, "You do not have permission to edit these questions.")
+        logger.warning(f"Unauthorized IQ edit attempt by {request.user.username}")
+        return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+    # Update group-level metadata on every entry
+    new_subject = request.POST.get('subject', orig_subject).strip()
+    new_hashtags = request.POST.get('hashtags', '').strip()
+    new_branches = ",".join(request.POST.getlist('branch'))
+    new_regulation = request.POST.get('regulation', first_iq.regulation)
+    new_unit = request.POST.get('unit', orig_unit).strip()
+    new_type = request.POST.get('type', orig_type).strip()
+
+    for iq in iqs:
+        iq.subject = new_subject
+        iq.hashtags = new_hashtags
+        if new_branches:
+            iq.branch = new_branches
+        iq.regulation = new_regulation
+        if new_unit.isdigit():
+            iq.unit = int(new_unit)
+        iq.question_type = new_type
+
+        # Update individual question text if provided
+        q_text = request.POST.get(f'question_{iq.question_number}', '').strip()
+        iq.question_text = q_text
+
+        # Replace file if a new one was uploaded for this specific question
+        new_file = request.FILES.get(f'file_{iq.question_number}')
+        if new_file:
+            is_valid, error_msg = validate_uploaded_file(new_file)
+            if is_valid:
+                iq.file = new_file
+                iq.original_filename = new_file.name
+
+        iq.save()
+
+    messages.success(request, f"Important Questions for '{new_subject}' updated successfully.")
+    logger.info(f"User {request.user.username} edited IQ group: {orig_subject} Unit {orig_unit} {orig_type}")
     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 
 
