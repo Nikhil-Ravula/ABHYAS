@@ -280,7 +280,7 @@
 
                                     <!-- Edit IQ Group -->
                                     <button type="button" class="icon-btn" style="color:var(--secondary); border:none; background:none;" title="Edit"
-                                        onclick="openEditIQModal('{{ iq.subject|escapejs }}', {{ iq.unit }}, '{{ iq.question_type }}', '{{ iq.regulation }}', '{{ iq.hashtags|escapejs }}', '{{ iq.branch|escapejs }}')"><i class="fas fa-pen"></i></button>
+                                        onclick="openEditIQModal('{{ iq.subject|escapejs }}', {{ iq.unit }}, '{{ iq.question_type }}', '{{ iq.regulation }}')"><i class="fas fa-pen"></i></button>
 
                                     <!-- Delete IQ Group -->
                                     <form method="POST" action="{% url 'delete_iq' %}"
@@ -488,13 +488,12 @@
     }
 
     // ── IQ Edit Modal ───────────────────────────────────────────────────────
-    function openEditIQModal(subject, unit, type, regulation, hashtags, branch) {
+    function openEditIQModal(subject, unit, type, regulation) {
         document.getElementById('eiq-orig-subject').value = subject;
         document.getElementById('eiq-orig-unit').value = unit;
         document.getElementById('eiq-orig-type').value = type;
         document.getElementById('eiq-subject').value = subject;
         document.getElementById('eiq-unit').value = unit;
-        document.getElementById('eiq-hashtags').value = hashtags;
 
         const typeEl = document.getElementById('eiq-type');
         for (let o of typeEl.options) o.selected = (o.value === type);
@@ -502,14 +501,16 @@
         const regEl = document.getElementById('eiq-regulation');
         for (let o of regEl.options) o.selected = (o.value === regulation);
 
-        const selectedBranches = branch ? branch.split(',') : [];
+        // Load questions & extract branch/hashtags from map
+        const key = subject + '|' + unit + '|' + type;
+        const questions = IQ_MAP[key] || [];
+        const firstQ = questions[0] || {};
+        document.getElementById('eiq-hashtags').value = firstQ.hashtags || '';
+        const selectedBranches = firstQ.branch ? firstQ.branch.split(',') : [];
         document.querySelectorAll('.eiq-branch-cb').forEach(cb => {
             cb.checked = selectedBranches.includes(cb.value);
         });
 
-        // Load questions
-        const key = subject + '|' + unit + '|' + type;
-        const questions = IQ_MAP[key] || [];
         const container = document.getElementById('eiq-questions-container');
         container.innerHTML = '';
         questions.forEach(q => {
@@ -529,7 +530,6 @@
             `;
             container.appendChild(div);
         });
-
 
         document.getElementById('editIQModal').style.display = 'flex';
     }

@@ -477,7 +477,7 @@ def staff_dashboard(request):
 
     papers = Paper.objects.filter(uploaded_by=request.user).order_by('-uploaded_at')
     my_iqs = ImportantQuestionEntry.objects.filter(uploaded_by=request.user).values(
-        'subject', 'regulation', 'unit', 'question_type', 'branch', 'hashtags'
+        'subject', 'regulation', 'unit', 'question_type'
     ).annotate(
         q_count=Count('id'),
         latest_upload=Max('uploaded_at')
@@ -485,7 +485,7 @@ def staff_dashboard(request):
 
     # Full IQ entries per group (for edit modals) — keyed by "subject|unit|type"
     iq_entries_map = {}
-    for iq in ImportantQuestionEntry.objects.filter(uploaded_by=request.user).order_by('question_number'):
+    for iq in ImportantQuestionEntry.objects.filter(uploaded_by=request.user).order_by('unit', 'question_type', 'question_number'):
         key = f"{iq.subject}|{iq.unit}|{iq.question_type}"
         if key not in iq_entries_map:
             iq_entries_map[key] = []
@@ -494,6 +494,8 @@ def staff_dashboard(request):
             'text': iq.question_text,
             'file_url': iq.file.url if iq.file else '',
             'original_filename': iq.original_filename,
+            'branch': iq.branch,
+            'hashtags': iq.hashtags,
         })
 
     context = {
@@ -688,7 +690,7 @@ def admin_log_view(request):
     unique_visitors = SiteVisit.objects.count()
 
     my_iqs = ImportantQuestionEntry.objects.filter(uploaded_by=request.user).values(
-        'subject', 'regulation', 'unit', 'question_type', 'branch', 'hashtags'
+        'subject', 'regulation', 'unit', 'question_type'
     ).annotate(
         q_count=Count('id'),
         latest_upload=Max('uploaded_at')
@@ -699,7 +701,7 @@ def admin_log_view(request):
 
     # Full IQ entries per group (for edit modals) — keyed by (subject, unit, type)
     iq_entries_map = {}
-    for iq in ImportantQuestionEntry.objects.filter(uploaded_by=request.user).order_by('question_number'):
+    for iq in ImportantQuestionEntry.objects.filter(uploaded_by=request.user).order_by('unit', 'question_type', 'question_number'):
         key = f"{iq.subject}|{iq.unit}|{iq.question_type}"
         if key not in iq_entries_map:
             iq_entries_map[key] = []
@@ -708,6 +710,8 @@ def admin_log_view(request):
             'text': iq.question_text,
             'file_url': iq.file.url if iq.file else '',
             'original_filename': iq.original_filename,
+            'branch': iq.branch,
+            'hashtags': iq.hashtags,
         })
 
     context = {
