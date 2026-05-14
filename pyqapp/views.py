@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import os
+import unicodedata
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Count, Max
@@ -29,6 +30,23 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.colors import grey
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# ── Register Unicode-capable fonts for PDF generation ──────────────────────
+# Default Helvetica/Times only support Latin-1. Arial supports full Unicode
+# including math symbols, superscripts (x², e^−x), etc.
+try:
+    _ARIAL_PATH = 'C:/Windows/Fonts/arial.ttf'
+    _ARIAL_BOLD_PATH = 'C:/Windows/Fonts/arialbd.ttf'
+    pdfmetrics.registerFont(TTFont('ArialUnicode', _ARIAL_PATH))
+    pdfmetrics.registerFont(TTFont('ArialUnicode-Bold', _ARIAL_BOLD_PATH))
+    _PDF_FONT = 'ArialUnicode'
+    _PDF_FONT_BOLD = 'ArialUnicode-Bold'
+except Exception:
+    # Fallback to built-in fonts if Arial is not found (e.g. on Linux servers)
+    _PDF_FONT = 'Helvetica'
+    _PDF_FONT_BOLD = 'Helvetica-Bold'
 
 from .models import (
     Paper, Ticket, TicketReply, ImportantQuestionEntry,
@@ -809,16 +827,45 @@ def download_iq_pdf(request):
     styles = getSampleStyleSheet()
     story = []
 
-    story.append(Paragraph(f"Important Questions: {escape(subject_name)}", styles['Title']))
+    # Use Unicode-capable font styles so math symbols (x², e^−x, etc.) render correctly
+    title_style = ParagraphStyle(
+        'UniTitle',
+        parent=styles['Title'],
+        fontName=_PDF_FONT_BOLD,
+    )
+    normal_style = ParagraphStyle(
+        'UniNormal',
+        parent=styles['Normal'],
+        fontName=_PDF_FONT,
+        fontSize=11,
+        leading=16,
+        spaceAfter=4,
+    )
+    q_label_style = ParagraphStyle(
+        'QLabel',
+        parent=styles['Normal'],
+        fontName=_PDF_FONT_BOLD,
+        fontSize=11,
+        leading=16,
+    )
+
+    story.append(Paragraph(f"Important Questions: {escape(subject_name)}", title_style))
     story.append(Paragraph(
-        f"Unit: {unit if unit else 'All'} | Type: {iq_type if iq_type else 'All'}", 
-        styles['Normal']
+        f"Unit: {unit if unit else 'All'} | Type: {iq_type if iq_type else 'All'}",
+        normal_style
     ))
     story.append(Spacer(1, 12))
-    
+
     for q in iqs:
         text = q.question_text if q.question_text else "(See attached file)"
-        story.append(Paragraph(f"<b>Q{q.question_number}:</b> {escape(text)}", styles['Normal']))
+        # Normalize the text to convert mathematical italic characters (like 𝑖, 𝑥) to standard ASCII
+        text = unicodedata.normalize('NFKC', text)
+        
+        # Render question number in bold + question text in unicode-safe font
+        story.append(Paragraph(
+            f"<font name='{_PDF_FONT_BOLD}'>Q{q.question_number}:</font>  {escape(text)}",
+            normal_style
+        ))
         story.append(Spacer(1, 6))
 
     # Add notes section
@@ -829,6 +876,7 @@ def download_iq_pdf(request):
     note_style = ParagraphStyle(
         'NoteStyle',
         parent=styles['Normal'],
+        fontName=_PDF_FONT,
         fontSize=8,
         leading=11,
         spaceAfter=8,
@@ -836,19 +884,19 @@ def download_iq_pdf(request):
     )
 
     story.append(Paragraph(
-        "<b>Note 1:</b> The probability of these Important Questions appearing in the "
+        f"<font name='{_PDF_FONT_BOLD}'>Note 1:</font> The probability of these Important Questions appearing in the "
         "examination is approximately 50%. These questions are prepared based on previous "
         "question papers and reference books.",
         note_style
     ))
 
     story.append(Paragraph(
-        "<b>Note 2:</b> For previous year question papers, visit the website.",
+        f"<font name='{_PDF_FONT_BOLD}'>Note 2:</font> For previous year question papers, visit the website.",
         note_style
     ))
 
     story.append(Paragraph(
-        "<b>Note 3:</b> Some questions in this PDF may not belong to your regulation. "
+        f"<font name='{_PDF_FONT_BOLD}'>Note 3:</font> Some questions in this PDF may not belong to your regulation. "
         "Please verify with your official syllabus copy.",
         note_style
     ))
@@ -861,7 +909,7 @@ def download_iq_pdf(request):
         fontSize=14,
         leading=18,
         alignment=TA_CENTER,
-        fontName='Helvetica-Bold',
+        fontName=_PDF_FONT_BOLD,
     )
     story.append(Paragraph("ALL THE BEST", atb_style))
 
