@@ -127,17 +127,30 @@ def _get_paper_content(paper):
 
 def draw_page_border(canvas, doc):
     """
-    Draw a border around PDF page for aesthetic purposes.
+    Draw a border and watermark around PDF page for aesthetic purposes.
     
     Args:
         canvas: ReportLab canvas object
         doc: SimpleDocTemplate object
     """
+    width, height = letter
+
+    # Draw Watermark
+    canvas.saveState()
+    # Use the globally defined bold font, fallback to Helvetica-Bold if needed
+    font_name = globals().get('_PDF_FONT_BOLD', 'Helvetica-Bold')
+    canvas.setFont(font_name, 100)
+    canvas.setFillColorRGB(0.92, 0.92, 0.92)  # Very light gray
+    canvas.translate(width / 2.0, height / 2.0)
+    canvas.rotate(45)
+    canvas.drawCentredString(0, 0, "ABHYAS")
+    canvas.restoreState()
+
+    # Draw Border
     canvas.saveState()
     canvas.setStrokeColorRGB(0.3, 0.3, 0.3)  # Dark grey border
     canvas.setLineWidth(1.5)
     margin = 20
-    width, height = letter
     canvas.rect(margin, margin, width - 2 * margin, height - 2 * margin)
     canvas.restoreState()
 
