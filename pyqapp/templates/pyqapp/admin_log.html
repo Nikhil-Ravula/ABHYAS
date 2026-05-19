@@ -403,8 +403,7 @@
 
             {% if messages %}
             {% for message in messages %}
-            <div class="toast toast-{{ message.tags }}" style="position: static; margin-bottom: 1rem; width: 100%;">{{
-                message }}</div>
+            <div class="toast toast-{{ message.tags }}" style="position: static; margin-bottom: 1rem; width: 100%;">{{ message }}</div>
             {% endfor %}
             {% endif %}
 
