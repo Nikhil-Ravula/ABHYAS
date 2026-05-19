@@ -65,15 +65,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="filter-group">
-                            <label><i class="fas fa-tag"></i> Type</label>
-                            <select id="filterType" onchange="searchPapers()">
-                                <option value="">All Types</option>
-                                <option value="regular">Regular</option>
-                                <option value="supply">Supply</option>
-                                <option value="mid">Mid</option>
-                            </select>
-                        </div>
+
                         <div class="filter-group">
                             <label><i class="fas fa-code-branch"></i> Branch</label>
                             <select id="filterBranch" onchange="searchPapers()">
@@ -222,12 +214,11 @@
         async function searchPapers() {
             const hashtag = document.getElementById('searchHashtag').value.trim();
             const year = document.getElementById('filterYear').value;
-            const type = document.getElementById('filterType').value;
             const branch = document.getElementById('filterBranch').value;
             const regulation = document.getElementById('filterRegulation').value;
             const resultsArea = document.getElementById('resultsArea');
 
-            if (!hashtag && !year && !type && !branch && !regulation) {
+            if (!hashtag && !year && !branch && !regulation) {
                 resultsArea.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><h3>Search for Question Papers</h3><p>Enter hashtags or use filters to find papers.</p></div>`;
                 return;
             }
@@ -235,7 +226,7 @@
             resultsArea.innerHTML = '<div class="spinner"></div>';
 
             try {
-                const params = new URLSearchParams({ hashtag, year, type, branch, regulation });
+                const params = new URLSearchParams({ hashtag, year, branch, regulation });
                 const response = await fetch('?' + params.toString(), {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
@@ -257,7 +248,7 @@
                     </div>
                     <h3>${escapeHtml(p.subject)}</h3>
                     <div class="paper-info">
-                        <span><i class="fas fa-user"></i> ${escapeHtml(p.uploader)}</span>
+                        <span><i class="fas fa-user"></i>SITE OWNER</span>
                         <span><i class="fas fa-calendar-alt"></i> ${p.date}</span>
                     </div>
                     <div class="paper-actions">
@@ -347,7 +338,6 @@
         function resetFilters() {
             document.getElementById('searchHashtag').value = '';
             document.getElementById('filterYear').value = '';
-            document.getElementById('filterType').value = '';
             document.getElementById('filterBranch').value = '';
             document.getElementById('filterRegulation').value = '';
             searchPapers();

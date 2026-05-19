@@ -260,10 +260,17 @@ def register_view(request):
             messages.error(request, "Password must be at least 8 characters")
             return render(request, 'pyqapp/register.html')
 
-        # Generic message to prevent user enumeration
-        if User.objects.filter(username=username).exists() or User.objects.filter(email=email).exists():
-            messages.success(request, "If this account doesn't exist, it has been created. Check your email.")
-            logger.warning(f"Registration attempt for existing username: {username}")
+        username_exists = User.objects.filter(username=username).exists()
+        email_exists = User.objects.filter(email=email).exists()
+
+        if username_exists or email_exists:
+            if username_exists:
+                messages.error(request, "This Username is already taken")
+            if email_exists:
+                messages.error(request, "This Email is already registered")
+            
+            logger.warning(f"Registration attempt for existing user/email: {username} / {email}")
+            return render(request, 'pyqapp/register.html')
         else:
             try:
                 User.objects.create_user(username=username, email=email, password=password)
