@@ -176,8 +176,7 @@
                     <div class="ann-bullet"></div>
                     <div style="flex:1;">
                         <div class="ann-text">{{ ann.message }}</div>
-                        <div class="ann-date"><i class="fas fa-clock" style="margin-right:4px;"></i>{{
-                            ann.created_at|date:"d M, Y" }}</div>
+                        <div class="ann-date"><i class="fas fa-clock" style="margin-right:4px;"></i>{{ ann.created_at|date:"d M, Y" }}</div>
                     </div>
                 </div>
                 {% endfor %}
@@ -201,8 +200,7 @@
             {% endif %}
 
             <div class="tab-nav animate-up-delay">
-                <button class="tab-btn active" onclick="switchTab('pyq')"><i class="fas fa-file-alt"></i> PYQ
-                    Portal</button>
+                <button class="tab-btn active" onclick="switchTab('pyq')"><i class="fas fa-file-alt"></i> PYQ's </button>
                 <button class="tab-btn" onclick="switchTab('iq')"><i class="fas fa-star"></i> Important
                     Questions</button>
             </div>
