@@ -143,6 +143,19 @@ class SiteVisit(models.Model):
 # device, the old session key is invalidated and replaced with the new one.
 # This ensures only ONE active session per user account at any time.
 
+class Announcement(models.Model):
+    message    = models.TextField()
+    posted_by  = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active  = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.message[:60]
+
+
 class UserSession(models.Model):
     # One-to-one link: each user has exactly one active session record
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_session')

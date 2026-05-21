@@ -146,7 +146,9 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+# pyqapp/static/ is discovered automatically via APP_DIRS staticfiles finder.
+# Only list extra directories here that are outside any installed app.
+STATICFILES_DIRS = []
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Production static files
 
 # Media files (Uploaded Question Papers)

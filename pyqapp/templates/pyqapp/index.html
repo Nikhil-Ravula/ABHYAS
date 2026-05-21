@@ -103,6 +103,10 @@
             document.getElementById('navLinks').classList.toggle('active');
             document.querySelector('.hamburger').classList.toggle('active');
         }
+
+        // Remove this page from the browser history stack.
+        // After login, pressing Back won't return here.
+        history.replaceState(null, '', window.location.href);
     </script>
 
 </body>

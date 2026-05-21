@@ -559,6 +559,13 @@
     document.getElementById('editIQModal').addEventListener('click', function(e) {
         if (e.target === this) closeEditIQModal();
     });
+
+    // ── Back Button Lock ────────────────────────────────────────────────
+    // Push dashboard into history so pressing Back keeps the user here.
+    history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', function () {
+        history.pushState(null, '', window.location.href);
+    });
 </script>
 
 </html>

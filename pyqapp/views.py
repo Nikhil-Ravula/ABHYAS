@@ -22,6 +22,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 from django.utils.html import escape
 
 import requests as http_requests
@@ -52,7 +53,7 @@ except Exception:
 from .models import (
     Paper, Ticket, TicketReply, ImportantQuestionEntry,
     PaperView, PaperDownload, IQView, IQDownload, SiteVisit,
-    UserSession
+    UserSession, Announcement
 )
 
 # Setup logging
@@ -286,6 +287,7 @@ def register_view(request):
     return render(request, 'pyqapp/register.html')
 
 
+@never_cache
 @login_required
 def logout_view(request):
     """Clear session record and log user out."""
@@ -302,6 +304,7 @@ def logout_view(request):
     return redirect('login')
 
 
+@never_cache
 @login_required
 def logout_all_devices_view(request):
     """Log out the user from all devices by invalidating the active session."""
@@ -319,6 +322,7 @@ def logout_all_devices_view(request):
 
 # ── Student Dashboard ────────────────────────────────────────────────────────
 
+@never_cache
 @login_required
 def student_dashboard(request):
     """
@@ -422,11 +426,13 @@ def student_dashboard(request):
         SiteVisit.objects.get_or_create(user=request.user)
 
     years = Paper.objects.values_list('year', flat=True).distinct().order_by('-year')
-    return render(request, 'pyqapp/student.html', {'years': years})
+    announcements = Announcement.objects.filter(is_active=True)
+    return render(request, 'pyqapp/student.html', {'years': years, 'announcements': announcements})
 
 
 # ── Staff Dashboard ──────────────────────────────────────────────────────────
 
+@never_cache
 @login_required
 @require_http_methods(["GET", "POST"])
 def staff_dashboard(request):
@@ -556,6 +562,7 @@ def staff_dashboard(request):
 
 # ── Support & Profile ────────────────────────────────────────────────────────
 
+@never_cache
 @login_required
 @require_http_methods(["GET", "POST"])
 def support_view(request):
@@ -584,6 +591,7 @@ def support_view(request):
     return render(request, 'pyqapp/support.html', {'tickets': tickets})
 
 
+@never_cache
 @login_required
 def profile_view(request):
     """Display user profile and active session info."""
@@ -603,6 +611,7 @@ def profile_view(request):
 
 # ── Admin Dashboard ──────────────────────────────────────────────────────────
 
+@never_cache
 @login_required
 @require_http_methods(["GET", "POST"])
 def admin_log_view(request):
@@ -710,6 +719,37 @@ def admin_log_view(request):
             messages.success(request, f"{success_count} Important Questions uploaded successfully!")
         return redirect('admin_log')
 
+    # Create Announcement
+    if request.method == 'POST' and request.POST.get('action') == 'create_announcement':
+        message = request.POST.get('message', '').strip()
+        if message:
+            Announcement.objects.create(message=message, posted_by=request.user)
+            messages.success(request, 'Announcement posted successfully!')
+        else:
+            messages.error(request, 'Announcement message cannot be empty.')
+        return redirect('admin_log')
+
+    # Edit Announcement
+    if request.method == 'POST' and request.POST.get('action') == 'edit_announcement':
+        ann_id = request.POST.get('announcement_id', '')
+        message = request.POST.get('message', '').strip()
+        if ann_id and message:
+            ann = get_object_or_404(Announcement, id=ann_id)
+            ann.message = message
+            ann.save()
+            messages.success(request, 'Announcement updated successfully!')
+        else:
+            messages.error(request, 'Invalid edit request.')
+        return redirect('admin_log')
+
+    # Delete Announcement
+    if request.method == 'POST' and request.POST.get('action') == 'delete_announcement':
+        ann_id = request.POST.get('announcement_id', '')
+        if ann_id:
+            get_object_or_404(Announcement, id=ann_id).delete()
+            messages.success(request, 'Announcement deleted.')
+        return redirect('admin_log')
+
     # Fetch dashboard data
     staff_users = User.objects.filter(is_staff=True).order_by('-date_joined')
     tickets = Ticket.objects.all().order_by('-created_at').prefetch_related('replies', 'replies__author', 'student')
@@ -760,6 +800,8 @@ def admin_log_view(request):
             'hashtags': iq.hashtags,
         })
 
+    announcements = Announcement.objects.all()
+
     context = {
         'staff_users': staff_users,
         'tickets': tickets,
@@ -770,6 +812,7 @@ def admin_log_view(request):
         'iq_entries_map_json': json.dumps(iq_entries_map),
         'branches': branches_list,
         'unique_visitors': unique_visitors,
+        'announcements': announcements,
     }
     return render(request, 'pyqapp/admin_log.html', context)
 

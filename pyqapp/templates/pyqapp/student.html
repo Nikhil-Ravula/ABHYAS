@@ -39,6 +39,138 @@
                 </div>
             </div>
 
+            {% if announcements %}
+            <!-- ── Announcements Box ─────────────────────────────── -->
+            <style>
+                @keyframes ann-glow {
+                    0%, 100% { box-shadow: 0 0 12px rgba(108,99,255,0.35), 0 0 0 1px rgba(108,99,255,0.25); border-color: rgba(108,99,255,0.5); }
+                    50%       { box-shadow: 0 0 22px rgba(0,196,140,0.4),  0 0 0 1px rgba(0,196,140,0.3);  border-color: rgba(0,196,140,0.55); }
+                }
+                .ann-box {
+                    background: linear-gradient(135deg, rgba(108,99,255,0.18) 0%, rgba(15,14,23,0.95) 100%);
+                    backdrop-filter: blur(20px);
+                    border: 1.5px solid rgba(108,99,255,0.55);
+                    border-radius: var(--radius);
+                    padding: 0;
+                    margin-bottom: 28px;
+                    animation: ann-glow 3.5s ease-in-out infinite;
+                    overflow: hidden;
+                    opacity: 1;
+                }
+                .ann-box-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 14px 20px;
+                    background: linear-gradient(90deg, rgba(108,99,255,0.3), rgba(0,196,140,0.15));
+                    border-bottom: 1px solid rgba(108,99,255,0.35);
+                    gap: 12px;
+                }
+                .ann-box-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-family: var(--font-heading);
+                    font-size: 0.95rem;
+                    font-weight: 700;
+                    letter-spacing: 0.04em;
+                    color: var(--primary-light);
+                }
+                .ann-box-title i {
+                    font-size: 1rem;
+                    color: var(--secondary);
+                }
+                .ann-view-btn {
+                    background: transparent;
+                    border: 1px solid rgba(108,99,255,0.3);
+                    color: var(--primary-light);
+                    padding: 5px 14px;
+                    border-radius: 50px;
+                    font-size: 0.78rem;
+                    font-family: var(--font-main);
+                    cursor: pointer;
+                    transition: var(--transition);
+                    white-space: nowrap;
+                }
+                .ann-view-btn:hover {
+                    background: rgba(108,99,255,0.15);
+                    border-color: var(--primary-light);
+                }
+                .ann-item {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    padding: 12px 20px;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                    transition: background 0.2s;
+                }
+                .ann-item:last-child { border-bottom: none; }
+                .ann-item:hover { background: rgba(108,99,255,0.06); }
+                .ann-bullet {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, var(--primary), var(--secondary));
+                    margin-top: 6px;
+                    flex-shrink: 0;
+                    box-shadow: 0 0 6px rgba(108,99,255,0.5);
+                }
+                .ann-text {
+                    flex: 1;
+                    font-size: 0.9rem;
+                    color: var(--text-secondary);
+                    line-height: 1.6;
+                }
+                .ann-date {
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                    white-space: nowrap;
+                    margin-top: 2px;
+                }
+                .ann-hidden { display: none; }
+            </style>
+
+            <div class="ann-box">
+                <div class="ann-box-header">
+                    <div class="ann-box-title">
+                        <i class="fas fa-bullhorn"></i>
+                        📢 ANNOUNCEMENTS
+                    </div>
+                    {% if announcements.count > 3 %}
+                    <button class="ann-view-btn" id="ann-toggle-btn" onclick="toggleAnnouncements()">
+                        View All <i class="fas fa-chevron-down" style="font-size:0.7rem;"></i>
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% for ann in announcements %}
+                <div class="ann-item {% if forloop.counter > 3 %}ann-hidden ann-extra{% endif %}">
+                    <div class="ann-bullet"></div>
+                    <div style="flex:1;">
+                        <div class="ann-text">{{ ann.message }}</div>
+                        <div class="ann-date"><i class="fas fa-clock" style="margin-right:4px;"></i>{{ ann.created_at|date:"d M, Y" }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <script>
+                var annExpanded = false;
+                function toggleAnnouncements() {
+                    annExpanded = !annExpanded;
+                    document.querySelectorAll('.ann-extra').forEach(function(el) {
+                        el.classList.toggle('ann-hidden', !annExpanded);
+                    });
+                    var btn = document.getElementById('ann-toggle-btn');
+                    if (btn) {
+                        btn.innerHTML = annExpanded
+                            ? 'Show Less <i class="fas fa-chevron-up" style="font-size:0.7rem;"></i>'
+                            : 'View All <i class="fas fa-chevron-down" style="font-size:0.7rem;"></i>';
+                    }
+                }
+            </script>
+            {% endif %}
+
             <div class="tab-nav animate-up-delay">
                 <button class="tab-btn active" onclick="switchTab('pyq')"><i class="fas fa-file-alt"></i> PYQ
                     Portal</button>
@@ -172,6 +304,13 @@
     </div>
 
     <script>
+        // ── Back Button Lock ────────────────────────────────────────────────
+        // Push dashboard into history so pressing Back keeps the user here.
+        history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', function () {
+            history.pushState(null, '', window.location.href);
+        });
+
         // ── PDF Viewer Modal ────────────────────────────────────────────────
         function viewPaper(paperId, paperTitle) {
             const modal = document.getElementById('pdfViewerModal');

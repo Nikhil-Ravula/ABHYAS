@@ -367,6 +367,63 @@
         .empty-state p {
             font-size: 0.95rem;
         }
+
+        /* ── Announcements Admin ───────────────────────── */
+        .ann-admin-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.6fr;
+            gap: 24px;
+            align-items: flex-start;
+        }
+        @media (max-width: 768px) {
+            .ann-admin-grid { grid-template-columns: 1fr; }
+        }
+        .ann-form-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .ann-form-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, rgba(108,99,255,0.25), rgba(0,196,140,0.15));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: var(--primary-light);
+            flex-shrink: 0;
+        }
+        .ann-form-title {
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+        .ann-cancel-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 18px;
+            border-radius: var(--radius-xs);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: var(--font-main);
+            transition: var(--transition);
+        }
+        .ann-cancel-btn:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+        .ann-msg-preview {
+            max-width: 340px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
     </style>
 </head>
 
@@ -454,6 +511,7 @@
                 <button class="tab-btn" onclick="switchTab('tickets')"><i class="fas fa-ticket"></i> Tickets</button>
                 <button class="tab-btn" onclick="switchTab('paper-stats')"><i class="fas fa-chart-bar"></i> Paper
                     Stats</button>
+                <button class="tab-btn" onclick="switchTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
             </div>
 
             <!-- ============ TAB 1: Staff List ============ -->
@@ -954,6 +1012,114 @@
                 </div>
             </div>
 
+            <!-- ============ TAB 6: Announcements ============ -->
+            <div class="tab-content" id="tab-announcements">
+                <div class="ann-admin-grid">
+
+                    <!-- Left: Add / Edit Form -->
+                    <div class="card" id="ann-form-card">
+                        <div class="ann-form-header">
+                            <div class="ann-form-icon" id="ann-form-icon-el">
+                                <i class="fas fa-bullhorn"></i>
+                            </div>
+                            <div>
+                                <div class="ann-form-title" id="ann-form-title-el">Add New Announcement</div>
+                                <div style="font-size:0.78rem; color:var(--text-muted);">Visible to all students instantly</div>
+                            </div>
+                        </div>
+                        <form method="POST" id="ann-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" id="ann-action" value="create_announcement">
+                            <input type="hidden" name="announcement_id" id="ann-id" value="">
+                            <div class="form-group">
+                                <label style="color:var(--secondary);"><i class="fas fa-comment-dots"></i> Message</label>
+                                <textarea name="message" id="ann-message" class="form-control"
+                                    rows="5"
+                                    placeholder="Type your announcement here... e.g. Mid-term exams scheduled for 10th June 2026."
+                                    required></textarea>
+                            </div>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <button type="submit" class="btn btn-success" id="ann-submit-btn" style="flex:1;">
+                                    <i class="fas fa-paper-plane"></i> Post Announcement
+                                </button>
+                                <button type="button" class="ann-cancel-btn" id="ann-cancel-btn"
+                                    style="display:none;" onclick="cancelEdit()">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Right: Existing Announcements Table -->
+                    <div class="card" style="overflow:hidden;">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-list" style="color:var(--secondary)"></i>
+                                All Announcements
+                                <span style="font-size:0.8rem; color:var(--text-muted); font-weight:400; margin-left:8px;">({{ announcements.count }})</span>
+                            </h3>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Message</th>
+                                        <th>Posted By</th>
+                                        <th>Date</th>
+                                        <th style="text-align:center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ann in announcements %}
+                                    <tr>
+                                        <td>
+                                            <div class="ann-msg-preview" title="{{ ann.message }}">{{ ann.message }}</div>
+                                        </td>
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <div class="staff-avatar" style="width:28px;height:28px;font-size:0.75rem;">{{ ann.posted_by.username|first|upper }}</div>
+                                                <span style="font-size:0.85rem;">{{ ann.posted_by.username }}</span>
+                                            </div>
+                                        </td>
+                                        <td style="font-size:0.82rem; color:var(--text-muted);">{{ ann.created_at|date:"d M, Y" }}</td>
+                                        <td style="text-align:center;">
+                                            <div style="display:flex; gap:8px; justify-content:center;">
+                                                <!-- Edit -->
+                                                <button type="button" class="icon-btn"
+                                                    style="color:var(--secondary); border:none; background:none;"
+                                                    title="Edit"
+                                                    onclick="loadEditAnnouncement({{ ann.id }}, '{{ ann.message|escapejs }}')"><i class="fas fa-pen"></i></button>
+                                                <!-- Delete -->
+                                                <form method="POST" style="display:inline;"
+                                                    onsubmit="return confirm('Delete this announcement?');">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="delete_announcement">
+                                                    <input type="hidden" name="announcement_id" value="{{ ann.id }}">
+                                                    <button type="submit" class="icon-btn"
+                                                        style="color:var(--danger); border:none; background:none;"
+                                                        title="Delete"><i class="fas fa-trash"></i></button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="empty-state" style="padding:40px 20px;">
+                                                <i class="fas fa-bullhorn"></i>
+                                                <p>No announcements yet. Add one!</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -1007,6 +1173,38 @@
 
             addMoreQuestions();
         });
+
+        // ── Announcement Edit/Cancel ──────────────────────────────────────
+        function loadEditAnnouncement(id, message) {
+            document.getElementById('ann-action').value = 'edit_announcement';
+            document.getElementById('ann-id').value = id;
+            document.getElementById('ann-message').value = message;
+            document.getElementById('ann-submit-btn').innerHTML = '<i class="fas fa-save"></i> Save Changes';
+            document.getElementById('ann-submit-btn').className = 'btn btn-primary';
+            document.getElementById('ann-cancel-btn').style.display = 'inline-flex';
+            document.getElementById('ann-form-title-el').textContent = 'Edit Announcement';
+            document.getElementById('ann-form-icon-el').innerHTML = '<i class="fas fa-pen"></i>';
+            // Switch to announcements tab and scroll to form
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-announcements').classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                if (b.textContent.trim().includes('Announcements')) b.classList.add('active');
+            });
+            document.getElementById('ann-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('ann-message').focus();
+        }
+
+        function cancelEdit() {
+            document.getElementById('ann-action').value = 'create_announcement';
+            document.getElementById('ann-id').value = '';
+            document.getElementById('ann-message').value = '';
+            document.getElementById('ann-submit-btn').innerHTML = '<i class="fas fa-paper-plane"></i> Post Announcement';
+            document.getElementById('ann-submit-btn').className = 'btn btn-success';
+            document.getElementById('ann-cancel-btn').style.display = 'none';
+            document.getElementById('ann-form-title-el').textContent = 'Add New Announcement';
+            document.getElementById('ann-form-icon-el').innerHTML = '<i class="fas fa-bullhorn"></i>';
+        }
     </script>
 
 </body>
@@ -1222,6 +1420,13 @@
 
     document.getElementById('editPaperModal').addEventListener('click', function (e) { if (e.target === this) closeEditPaperModal(); });
     document.getElementById('editIQModal').addEventListener('click', function (e) { if (e.target === this) closeEditIQModal(); });
+
+    // ── Back Button Lock ────────────────────────────────────────────────
+    // Push dashboard into history so pressing Back keeps the user here.
+    history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', function () {
+        history.pushState(null, '', window.location.href);
+    });
 </script>
 
 </html>
