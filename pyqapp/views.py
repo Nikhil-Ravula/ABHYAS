@@ -178,8 +178,19 @@ def login_view(request):
     to enforce single-device login policy.
     """
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
+        login_input = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
+
+        # Allow login with either username or email
+        # If input looks like an email, find the user by email first
+        username = login_input
+        if '@' in login_input:
+            try:
+                email_user = User.objects.get(email__iexact=login_input)
+                username = email_user.username
+            except User.DoesNotExist:
+                username = login_input  # Will fail auth, but shows proper error
+
         user = authenticate(request, username=username, password=password)
         
         if user is not None:
@@ -230,8 +241,8 @@ def login_view(request):
                 return redirect('staff_dashboard')
             return redirect('dashboard')
         else:
-            messages.error(request, "Invalid username or password")
-            logger.warning(f"Failed login attempt for username: {username}")
+            messages.error(request, "Invalid username/email or password. Try logging in with your email address.")
+            logger.warning(f"Failed login attempt for: {login_input}")
     
     return render(request, 'pyqapp/login.html')
 
