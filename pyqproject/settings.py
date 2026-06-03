@@ -41,17 +41,29 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 allowed_hosts_from_env = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 ALLOWED_HOSTS = allowed_hosts_from_env + (['*.ngrok-free.dev', '*.ngrok.io', '*.ngrok-free.app'] if DEBUG else [])
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://' + host.strip() for host in ALLOWED_HOSTS if not host.startswith('127.') and host != 'localhost'
-]
+# CSRF_TRUSTED_ORIGINS must include both http:// and https:// schemes.
+# Django checks the full Origin header (scheme + host) against this list.
+_csrf_hosts = [host.strip() for host in ALLOWED_HOSTS if not host.startswith('127.') and host != 'localhost']
+CSRF_TRUSTED_ORIGINS = (
+    ['https://' + h for h in _csrf_hosts] +
+    ['http://' + h for h in _csrf_hosts]
+)
 
 # Add ngrok for development
 if DEBUG:
     CSRF_TRUSTED_ORIGINS += [
         'https://*.ngrok-free.dev',
         'https://*.ngrok.io',
-        'https://*.ngrok-free.app'
+        'https://*.ngrok-free.app',
+        'http://*.ngrok-free.dev',
+        'http://*.ngrok.io',
+        'http://*.ngrok-free.app',
     ]
+
+# SameSite cookie settings — 'Lax' is the modern default and works
+# correctly with standard form POSTs while still providing CSRF protection.
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 
 # Application definition
