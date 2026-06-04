@@ -395,8 +395,14 @@ def student_dashboard(request):
             if iq_type:
                 iqs = iqs.filter(question_type=iq_type)
             if search:
-                # Search by subject name or hashtag
-                iqs = iqs.filter(Q(subject__icontains=search) | Q(hashtags__icontains=search))
+                # Search by exact subject name OR exact tag in comma-separated hashtags list
+                iqs = iqs.filter(
+                    Q(subject__iexact=search) |
+                    Q(hashtags__iexact=search) |
+                    Q(hashtags__istartswith=search + ',') |
+                    Q(hashtags__iendswith=',' + search) |
+                    Q(hashtags__icontains=',' + search + ',')
+                )
 
             # CRITICAL: Order by subject first to prevent alternating subject cards
             iqs = iqs.order_by('subject', 'unit', 'question_type', 'question_number')
@@ -442,7 +448,14 @@ def student_dashboard(request):
         papers = Paper.objects.all()
 
         if hashtag:
-            papers = papers.filter(Q(subject__icontains=hashtag) | Q(hashtags__icontains=hashtag))
+            # Search by exact subject name OR exact tag in comma-separated hashtags list
+            papers = papers.filter(
+                Q(subject__iexact=hashtag) |
+                Q(hashtags__iexact=hashtag) |
+                Q(hashtags__istartswith=hashtag + ',') |
+                Q(hashtags__iendswith=',' + hashtag) |
+                Q(hashtags__icontains=',' + hashtag + ',')
+            )
         if year and year.isdigit():
             papers = papers.filter(year=int(year))
         if paper_type:
@@ -919,22 +932,20 @@ def download_iq_pdf(request):
     if not search:
         return HttpResponse("Search term is required.", status=400)
 
-    # ── Strict subject filter ─────────────────────────────────────────────────
-    # Try exact subject match first (case-insensitive).
-    # This prevents questions from other subjects leaking in via hashtag matches.
-    iqs = ImportantQuestionEntry.objects.filter(subject__iexact=search)
+    # Search by exact subject name OR exact tag in comma-separated hashtags list
+    # Restrict strictly to a single subject if multiple matches occur
+    matched_subject = ImportantQuestionEntry.objects.filter(
+        Q(subject__iexact=search) |
+        Q(hashtags__iexact=search) |
+        Q(hashtags__istartswith=search + ',') |
+        Q(hashtags__iendswith=',' + search) |
+        Q(hashtags__icontains=',' + search + ',')
+    ).values_list('subject', flat=True).first()
 
-    # If no exact match, try partial subject match (but NOT hashtags — avoids cross-subject mixing)
-    if not iqs.exists():
-        iqs = ImportantQuestionEntry.objects.filter(subject__icontains=search)
-
-    # If still nothing, fall back to hashtag search but pin to one subject only
-    if not iqs.exists():
-        matched = ImportantQuestionEntry.objects.filter(
-            Q(subject__icontains=search) | Q(hashtags__icontains=search)
-        ).values_list('subject', flat=True).first()
-        if matched:
-            iqs = ImportantQuestionEntry.objects.filter(subject=matched)
+    if matched_subject:
+        iqs = ImportantQuestionEntry.objects.filter(subject=matched_subject)
+    else:
+        iqs = ImportantQuestionEntry.objects.none()
 
     if unit and unit.isdigit():
         iqs = iqs.filter(unit=int(unit))
