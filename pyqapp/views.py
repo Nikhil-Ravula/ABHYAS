@@ -389,15 +389,32 @@ def student_dashboard(request):
             search = request.GET.get('search', '').strip()
             
             iqs = ImportantQuestionEntry.objects.all()
-            
+
             if unit and unit.isdigit():
                 iqs = iqs.filter(unit=int(unit))
             if iq_type:
                 iqs = iqs.filter(question_type=iq_type)
             if search:
-                iqs = iqs.filter(Q(subject__icontains=search) | Q(hashtags__icontains=search))
-            
+                # Try exact subject match first to avoid cross-subject mixing
+                exact = iqs.filter(subject__iexact=search)
+                if exact.exists():
+                    iqs = exact
+                else:
+                    partial = iqs.filter(subject__icontains=search)
+                    if partial.exists():
+                        iqs = partial
+                    else:
+                        # Hashtag fallback — pin to ONE subject only
+                        matched_subject = iqs.filter(
+                            Q(subject__icontains=search) | Q(hashtags__icontains=search)
+                        ).values_list('subject', flat=True).first()
+                        if matched_subject:
+                            iqs = iqs.filter(subject=matched_subject)
+                        else:
+                            iqs = iqs.none()
+
             iqs = iqs.order_by('unit', 'question_type', 'question_number')
+
 
             # Track views
             if request.user.is_authenticated and search:
