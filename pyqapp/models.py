@@ -163,10 +163,12 @@ class UserSession(models.Model):
     # The Django session key for the currently active session
     session_key = models.CharField(max_length=40, blank=True, null=True)
 
-    # Optional: track login metadata for security auditing
-    ip_address = models.GenericIPAddressField(blank=True, null=True, help_text="IP address at last login")
-    device_info = models.CharField(max_length=512, blank=True, help_text="User-Agent string from browser")
+    # Login tracking — no PII stored
+    login_count = models.IntegerField(default=0, help_text="Total number of successful logins")
     logged_in_at = models.DateTimeField(auto_now=True, help_text="Timestamp of last login")
+
+    # Last activity timestamp — updated on every page request via middleware
+    last_seen = models.DateTimeField(null=True, blank=True, help_text="Timestamp of last page request")
 
     def __str__(self):
         return f"{self.user.username} - Session: {self.session_key[:8] if self.session_key else 'None'}..."

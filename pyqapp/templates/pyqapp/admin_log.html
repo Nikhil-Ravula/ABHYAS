@@ -500,6 +500,7 @@
             <div class="tab-nav animate-up-delay-2">
                 <button class="tab-btn active" onclick="switchTab('staff-list')"><i class="fas fa-users"></i> Staff
                     List</button>
+                <button class="tab-btn" onclick="switchTab('all-users')"><i class="fas fa-user-group"></i> All Users</button>
                 <button class="tab-btn" onclick="switchTab('create-staff')"><i class="fas fa-user-plus"></i> Create
                     Staff</button>
                 <button class="tab-btn" onclick="switchTab('upload-paper')"><i class="fas fa-cloud-upload-alt"></i>
@@ -529,6 +530,7 @@
                                     <th>Email</th>
                                     <th>Role</th>
                                     <th>Joined</th>
+                                    <th>Last Seen</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -549,10 +551,96 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ s.date_joined|date:"d M, Y" }}</td>
+                                    <td>
+                                        {% if s.user_session.last_seen %}
+                                            <span title="{{ s.user_session.last_seen|date:'d M Y, H:i' }}">
+                                                {{ s.user_session.last_seen|timesince }} ago
+                                            </span>
+                                        {% elif s.user_session.logged_in_at %}
+                                            <span title="{{ s.user_session.logged_in_at|date:'d M Y, H:i' }}" style="color:var(--text-muted);">
+                                                {{ s.user_session.logged_in_at|timesince }} ago
+                                                <small style="font-size:0.72rem;">(last login)</small>
+                                            </span>
+                                        {% else %}
+                                            <span style="color: var(--text-muted);">Never</span>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4">No staff members found.</td>
+                                    <td colspan="5">No staff members found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ TAB: All Users ============ -->
+            <div class="tab-content" id="tab-all-users">
+                <div class="card" style="overflow: hidden;">
+                    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                        <h3 class="card-title"><i class="fas fa-user-group" style="color:var(--secondary)"></i> All Registered Users</h3>
+                        <span style="font-size:0.85rem; color:var(--text-muted);">{{ all_users.count }} student{{ all_users.count|pluralize }}</span>
+                    </div>
+                    <!-- Search bar -->
+                    <div style="padding: 16px 24px 0;">
+                        <input type="text" id="user-search" class="form-control" placeholder="🔍  Search by username or email..." oninput="filterUsers(this.value)" style="max-width:400px;">
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="all-users-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Joined</th>
+                                    <th>Last Seen</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="all-users-tbody">
+                                {% for u in all_users %}
+                                <tr>
+                                    <td style="color:var(--text-muted); font-size:0.82rem;">{{ forloop.counter }}</td>
+                                    <td>
+                                        <div class="staff-info">
+                                            <div class="staff-avatar" style="background: linear-gradient(135deg, var(--secondary), var(--accent));">{{ u.username|first|upper }}</div>
+                                            <span>{{ u.username }}</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ u.email|default:"—" }}</td>
+                                    <td>{{ u.date_joined|date:"d M, Y" }}</td>
+                                    <td>
+                                        {% if u.user_session.last_seen %}
+                                            <span title="{{ u.user_session.last_seen|date:'d M Y, H:i' }}" style="color:var(--success);">
+                                                <i class="fas fa-circle" style="font-size:0.5rem; vertical-align:middle;"></i>
+                                                {{ u.user_session.last_seen|timesince }} ago
+                                            </span>
+                                        {% elif u.user_session.logged_in_at %}
+                                            <span title="{{ u.user_session.logged_in_at|date:'d M Y, H:i' }}" style="color:var(--text-muted);">
+                                                {{ u.user_session.logged_in_at|timesince }} ago
+                                                <small style="font-size:0.72rem;">(last login)</small>
+                                            </span>
+                                        {% else %}
+                                            <span style="color: var(--text-muted);">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if u.is_active %}
+                                            <span class="status-badge badge-resolved">Active</span>
+                                        {% else %}
+                                            <span class="status-badge badge-open">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" style="text-align:center; color:var(--text-muted); padding:40px;">
+                                        <i class="fas fa-users" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>
+                                        No registered students yet.
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -1427,6 +1515,16 @@
     window.addEventListener('popstate', function () {
         history.pushState(null, '', window.location.href);
     });
+
+    // ── All Users Search Filter ─────────────────────────────────────────
+    function filterUsers(query) {
+        const q = query.toLowerCase();
+        const rows = document.querySelectorAll('#all-users-tbody tr');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(q) ? '' : 'none';
+        });
+    }
 </script>
 
 </html>

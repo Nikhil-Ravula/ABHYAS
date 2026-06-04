@@ -6,15 +6,18 @@ admin.site.register(Ticket)
 admin.site.register(TicketReply)
 
 
-# ── Single Device Login: Show active sessions in admin ──
+# ── User Session Admin: shows login activity without any PII ──────────────────
 @admin.register(UserSession)
 class UserSessionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'session_key', 'ip_address', 'device_info_short', 'logged_in_at')
+    list_display = ('user', 'login_count', 'logged_in_at', 'last_seen', 'session_key_short')
     list_filter = ('logged_in_at',)
-    search_fields = ('user__username', 'ip_address')
-    readonly_fields = ('user', 'session_key', 'ip_address', 'device_info', 'logged_in_at')
+    search_fields = ('user__username', 'user__email')
+    readonly_fields = ('user', 'session_key', 'login_count', 'logged_in_at', 'last_seen')
+    ordering = ('-logged_in_at',)
 
-    def device_info_short(self, obj):
-        """Show truncated device info in the list view."""
-        return obj.device_info[:80] + '...' if len(obj.device_info) > 80 else obj.device_info
-    device_info_short.short_description = 'Device'
+    def session_key_short(self, obj):
+        """Show truncated session key for reference."""
+        if obj.session_key:
+            return obj.session_key[:8] + '...'
+        return '—'
+    session_key_short.short_description = 'Session'

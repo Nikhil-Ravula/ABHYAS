@@ -15,7 +15,7 @@ import os
 import unicodedata
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q, Count, Max
+from django.db.models import Q, Count, Max, F
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
@@ -24,6 +24,7 @@ from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 from django.utils.html import escape
+from django.core.cache import cache
 
 import requests as http_requests
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
@@ -58,6 +59,35 @@ from .models import (
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+
+# ── Rate Limiting Helpers ───────────────────────────────────────────────────
+
+def _get_rate_limit_key(username):
+    """Cache key for tracking failed login attempts per username."""
+    return f"login_fail_{username.lower()}"
+
+
+def _is_rate_limited(username):
+    """
+    Returns True if this username has exceeded 5 failed login attempts
+    within the last 15 minutes.
+    """
+    key = _get_rate_limit_key(username)
+    attempts = cache.get(key, 0)
+    return attempts >= 5
+
+
+def _record_failed_attempt(username):
+    """Increment failed attempt counter. Expires after 15 minutes."""
+    key = _get_rate_limit_key(username)
+    attempts = cache.get(key, 0)
+    cache.set(key, attempts + 1, timeout=900)  # 15 minutes
+
+
+def _reset_rate_limit(username):
+    """Clear failed attempt counter on successful login."""
+    cache.delete(_get_rate_limit_key(username))
 
 
 # ── Helper Functions ────────────────────────────────────────────────────────
@@ -172,17 +202,23 @@ def index(request):
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     """
-    Handle user login with single-device enforcement.
-    
-    On successful login, invalidates any existing session for the user
-    to enforce single-device login policy.
+    Handle user login with single-device enforcement and rate limiting.
+
+    - Blocks username after 5 failed attempts for 15 minutes (brute-force protection)
+    - Invalidates any existing session to enforce single-device login policy
+    - Increments login_count on each successful login
     """
     if request.method == 'POST':
         login_input = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
 
+        # ── Rate Limit Check ──────────────────────────────────────────────
+        if _is_rate_limited(login_input):
+            messages.error(request, "Too many failed login attempts. Please try again in 15 minutes.")
+            logger.warning(f"Rate-limited login attempt for: {login_input}")
+            return render(request, 'pyqapp/login.html')
+
         # Allow login with either username or email
-        # If input looks like an email, find the user by email first
         username = login_input
         if '@' in login_input:
             try:
@@ -192,9 +228,12 @@ def login_view(request):
                 username = login_input  # Will fail auth, but shows proper error
 
         user = authenticate(request, username=username, password=password)
-        
+
         if user is not None:
-            # ── Single Device Login: Invalidate previous session ──
+            # ── Rate Limit Reset ──────────────────────────────────────────
+            _reset_rate_limit(login_input)
+
+            # ── Single Device Login: Invalidate previous session ──────────
             from django.contrib.sessions.models import Session
             try:
                 old_session = user.user_session
@@ -210,29 +249,19 @@ def login_view(request):
             # Log the user in
             login(request, user)
 
-            # Save new session and device info
             if not request.session.session_key:
                 request.session.save()
 
-            # Get client IP (handle proxies)
-            ip_address = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
-            if not ip_address:
-                ip_address = request.META.get('REMOTE_ADDR', '')
-
-            # Get browser/device info
-            device_info = request.META.get('HTTP_USER_AGENT', '')[:getattr(settings, 'DEVICE_INFO_MAX_LENGTH', 512)]
-
-            # Store session record
+            # ── Save session record + increment login count ───────────────
             UserSession.objects.update_or_create(
                 user=user,
                 defaults={
                     'session_key': request.session.session_key,
-                    'ip_address': ip_address or None,
-                    'device_info': device_info,
+                    'login_count': F('login_count') + 1,
                 }
             )
 
-            logger.info(f"User {user.username} logged in from IP {ip_address}")
+            logger.info(f"User {user.username} logged in successfully")
 
             # Redirect to appropriate dashboard
             if user.is_superuser:
@@ -241,20 +270,29 @@ def login_view(request):
                 return redirect('staff_dashboard')
             return redirect('dashboard')
         else:
+            # ── Record failed attempt ─────────────────────────────────────
+            _record_failed_attempt(login_input)
             messages.error(request, "Invalid username/email or password. Try logging in with your email address.")
             logger.warning(f"Failed login attempt for: {login_input}")
-    
+
     return render(request, 'pyqapp/login.html')
 
 
 @require_http_methods(["GET", "POST"])
 def register_view(request):
     """
-    Handle new user registration with generic error messages.
-    
+    Handle new user registration with generic error messages and bot protection.
+
+    Uses a honeypot hidden field to silently reject automated bot submissions.
     Uses generic messages to prevent user enumeration attacks.
     """
     if request.method == 'POST':
+        # ── Honeypot Bot Check ────────────────────────────────────────────
+        # Real users never see or fill this field. Bots fill everything.
+        if request.POST.get('website', ''):
+            logger.warning("Bot registration attempt detected (honeypot triggered)")
+            return redirect('register')  # Silent rejection
+
         username = request.POST.get('username', '').strip()
         email = request.POST.get('email', '').strip()
         password = request.POST.get('password', '')
@@ -280,7 +318,7 @@ def register_view(request):
                 messages.error(request, "This Username is already taken")
             if email_exists:
                 messages.error(request, "This Email is already registered")
-            
+
             logger.warning(f"Registration attempt for existing user/email: {username} / {email}")
             return render(request, 'pyqapp/register.html')
         else:
@@ -292,9 +330,9 @@ def register_view(request):
                 logger.error(f"Error creating user {username}: {e}")
                 messages.error(request, "An error occurred during registration")
                 return render(request, 'pyqapp/register.html')
-        
+
         return redirect('login')
-    
+
     return render(request, 'pyqapp/register.html')
 
 
@@ -605,14 +643,14 @@ def support_view(request):
 @never_cache
 @login_required
 def profile_view(request):
-    """Display user profile and active session info."""
+    """Display user profile with session activity info."""
     session_info = None
     try:
         session_record = request.user.user_session
         session_info = {
-            'ip_address': session_record.ip_address or 'Unknown',
-            'device_info': session_record.device_info or 'Unknown',
+            'login_count': session_record.login_count,
             'logged_in_at': session_record.logged_in_at,
+            'last_seen': session_record.last_seen,
         }
     except UserSession.DoesNotExist:
         pass
@@ -762,7 +800,8 @@ def admin_log_view(request):
         return redirect('admin_log')
 
     # Fetch dashboard data
-    staff_users = User.objects.filter(is_staff=True).order_by('-date_joined')
+    staff_users = User.objects.filter(is_staff=True).order_by('-date_joined').select_related('user_session')
+    all_users = User.objects.filter(is_staff=False, is_superuser=False).order_by('-date_joined').select_related('user_session')
     tickets = Ticket.objects.all().order_by('-created_at').prefetch_related('replies', 'replies__author', 'student')
     
     all_papers = Paper.objects.all().annotate(
@@ -815,6 +854,7 @@ def admin_log_view(request):
 
     context = {
         'staff_users': staff_users,
+        'all_users': all_users,
         'tickets': tickets,
         'papers': papers,
         'all_papers': all_papers,

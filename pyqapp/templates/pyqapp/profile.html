@@ -8,6 +8,214 @@
     <title>My Profile - ABHYAS</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ── Profile Hero ─────────────────────────────────────────────── */
+        .profile-hero {
+            position: relative;
+            background: linear-gradient(135deg,
+                rgba(108, 99, 255, 0.15) 0%,
+                rgba(0, 196, 140, 0.08) 50%,
+                rgba(255, 101, 132, 0.08) 100%);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            overflow: hidden;
+        }
+
+        .profile-hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(108,99,255,0.15), transparent 70%);
+            border-radius: 50%;
+        }
+
+        .profile-avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 800;
+            font-family: var(--font-heading);
+            color: #fff;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.2);
+        }
+
+        .profile-hero-info h2 {
+            font-family: var(--font-heading);
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .profile-hero-info .profile-email {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .profile-role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 14px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .role-student {
+            background: rgba(0, 196, 140, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(0, 196, 140, 0.3);
+        }
+
+        .role-staff {
+            background: rgba(108, 99, 255, 0.15);
+            color: var(--primary-light);
+            border: 1px solid rgba(108, 99, 255, 0.3);
+        }
+
+        .role-admin {
+            background: rgba(255, 101, 132, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(255, 101, 132, 0.3);
+        }
+
+        /* ── Stats Grid ───────────────────────────────────────────────── */
+        .profile-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .profile-stat-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 1.25rem;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .profile-stat-card:hover {
+            border-color: var(--border-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .profile-stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-xs);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            margin: 0 auto 10px;
+        }
+
+        .profile-stat-number {
+            font-family: var(--font-heading);
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .profile-stat-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ── Info + Session Grid ──────────────────────────────────────── */
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 700px) {
+            .profile-grid { grid-template-columns: 1fr; }
+            .profile-hero { flex-direction: column; text-align: center; }
+            .profile-hero::before { display: none; }
+        }
+
+        .profile-section-title {
+            font-family: var(--font-heading);
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        .profile-info-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .profile-info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .profile-info-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-xs);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .profile-info-content label {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .profile-info-content span {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* ── Logout Section ───────────────────────────────────────────── */
+        .logout-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        @media (max-width: 500px) {
+            .logout-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 
 <body>
@@ -23,18 +231,14 @@
                 <span></span><span></span><span></span>
             </div>
             <ul class="nav-links" id="navLinks">
-                <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                <li><a href="{% url 'logout' %}" style="color: var(--danger);">Logout</a></li>
+                <li><a href="{% url 'dashboard' %}"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="{% url 'logout' %}" style="color: var(--danger);"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             </ul>
         </div>
     </nav>
 
     <div class="page-wrapper">
         <div class="container dashboard">
-            <div class="dashboard-header animate-up">
-                <h1><i class="fas fa-user-circle" style="color:var(--primary-light)"></i> User Profile</h1>
-                <p class="welcome-text">Manage your account information.</p>
-            </div>
 
             {% if messages %}
             {% for message in messages %}
@@ -44,95 +248,196 @@
             {% endfor %}
             {% endif %}
 
-            <div class="grid-2-1 animate-up-delay">
-                <div class="card glass">
-                    <div style="text-align: center; margin-bottom: 2rem;">
-                        <div class="logo-icon"
-                            style="margin: 0 auto 1rem; width: 80px; height: 80px; font-size: 2rem; background: var(--bg-card-hover);">
-                            <i class="fas fa-user-graduate"></i>
+            <!-- ── Hero ── -->
+            <div class="profile-hero animate-up">
+                <div class="profile-avatar">{{ user.username|first|upper }}</div>
+                <div class="profile-hero-info">
+                    <h2>{{ user.get_full_name|default:user.username }}</h2>
+                    <p class="profile-email"><i class="fas fa-envelope" style="margin-right:5px;"></i>{{ user.email|default:"No email set" }}</p>
+                    {% if user.is_superuser %}
+                    <span class="profile-role-badge role-admin"><i class="fas fa-shield-halved"></i> Admin</span>
+                    {% elif user.is_staff %}
+                    <span class="profile-role-badge role-staff"><i class="fas fa-chalkboard-teacher"></i> Staff</span>
+                    {% else %}
+                    <span class="profile-role-badge role-student"><i class="fas fa-user-graduate"></i> Student</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- ── Stats ── -->
+            <div class="profile-stats-grid animate-up-delay">
+                <!-- Login Count -->
+                <div class="profile-stat-card">
+                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(108,99,255,0.2), rgba(108,99,255,0.05)); color:var(--primary-light);">
+                        <i class="fas fa-sign-in-alt"></i>
+                    </div>
+                    <div class="profile-stat-number" style="color:var(--primary-light);">
+                        {{ session_info.login_count|default:"0" }}
+                    </div>
+                    <div class="profile-stat-label">Total Logins</div>
+                </div>
+
+                <!-- Member Since (days) -->
+                <div class="profile-stat-card">
+                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(0,196,140,0.2), rgba(0,196,140,0.05)); color:var(--success);">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="profile-stat-number" style="color:var(--success);">
+                        {{ user.date_joined|timesince|truncatechars:10 }}
+                    </div>
+                    <div class="profile-stat-label">Member Since</div>
+                </div>
+
+                <!-- Tickets / Papers -->
+                {% if user.is_staff %}
+                <div class="profile-stat-card">
+                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(255,184,0,0.2), rgba(255,184,0,0.05)); color:var(--warning);">
+                        <i class="fas fa-file-upload"></i>
+                    </div>
+                    <div class="profile-stat-number" style="color:var(--warning);">{{ user.paper_set.count }}</div>
+                    <div class="profile-stat-label">Papers Uploaded</div>
+                </div>
+                {% else %}
+                <div class="profile-stat-card">
+                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(255,101,132,0.2), rgba(255,101,132,0.05)); color:var(--accent);">
+                        <i class="fas fa-ticket"></i>
+                    </div>
+                    <div class="profile-stat-number" style="color:var(--accent);">{{ user.tickets.count }}</div>
+                    <div class="profile-stat-label">Support Tickets</div>
+                </div>
+                {% endif %}
+
+                <!-- Last Active -->
+                <div class="profile-stat-card">
+                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(0,180,216,0.2), rgba(0,180,216,0.05)); color:#00b4d8;">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <div class="profile-stat-number" style="color:#00b4d8; font-size:1.1rem; padding-top:6px;">
+                        {% if session_info.last_seen %}
+                            {{ session_info.last_seen|timesince|truncatechars:14 }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                    <div class="profile-stat-label">Last Active</div>
+                </div>
+            </div>
+
+            <!-- ── Account Info + Session Info ── -->
+            <div class="profile-grid animate-up-delay">
+
+                <!-- Account Info -->
+                <div class="card glass" style="padding: 1.75rem;">
+                    <p class="profile-section-title"><i class="fas fa-user" style="margin-right:6px;"></i>Account Info</p>
+
+                    <div class="profile-info-row">
+                        <div class="profile-info-icon" style="background:rgba(108,99,255,0.12); color:var(--primary-light);">
+                            <i class="fas fa-at"></i>
                         </div>
-                        <h3>{{ user.get_full_name|default:user.username }}</h3>
-                        <span class="paper-badge badge-branch">{{ user.is_staff|yesno:"Staff,Student" }}</span>
+                        <div class="profile-info-content">
+                            <label>Username</label>
+                            <span>{{ user.username }}</span>
+                        </div>
                     </div>
 
-                    <div class="info-list">
-                        <div class="info-item"
-                            style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
-                            <label style="color: var(--text-muted); font-size: 0.8rem; display: block;">Username</label>
-                            <span style="font-weight: 500;">{{ user.username }}</span>
+                    <div class="profile-info-row">
+                        <div class="profile-info-icon" style="background:rgba(0,196,140,0.12); color:var(--success);">
+                            <i class="fas fa-envelope"></i>
                         </div>
-                        <div class="info-item"
-                            style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
-                            <label style="color: var(--text-muted); font-size: 0.8rem; display: block;">Email
-                                Address</label>
-                            <span style="font-weight: 500;">{{ user.email }}</span>
+                        <div class="profile-info-content">
+                            <label>Email Address</label>
+                            <span>{{ user.email|default:"Not set" }}</span>
                         </div>
-                        <div class="info-item">
-                            <label style="color: var(--text-muted); font-size: 0.8rem; display: block;">Member
-                                Since</label>
-                            <span style="font-weight: 500;">{{ user.date_joined|date:"F Y" }}</span>
+                    </div>
+
+                    <div class="profile-info-row">
+                        <div class="profile-info-icon" style="background:rgba(255,184,0,0.12); color:var(--warning);">
+                            <i class="fas fa-calendar-plus"></i>
+                        </div>
+                        <div class="profile-info-content">
+                            <label>Joined On</label>
+                            <span>{{ user.date_joined|date:"d F Y" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-info-row">
+                        <div class="profile-info-icon" style="background:rgba(255,101,132,0.12); color:var(--accent);">
+                            <i class="fas fa-id-badge"></i>
+                        </div>
+                        <div class="profile-info-content">
+                            <label>Account Type</label>
+                            <span>
+                                {% if user.is_superuser %}Admin
+                                {% elif user.is_staff %}Staff
+                                {% else %}Student{% endif %}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <div class="card glass">
-                    <h3><i class="fas fa-chart-line"></i> Activity Summary</h3>
-                    <div style="margin-top: 1.5rem;">
-                        {% if user.is_staff %}
-                        <div class="stat-card"
-                            style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-md); text-align: center;">
-                            <h2 style="color: var(--secondary);">{{ user.paper_set.count }}</h2>
-                            <p style="font-size: 0.9rem;">Papers Uploaded</p>
+                <!-- Session Info -->
+                <div class="card glass" style="padding: 1.75rem;">
+                    <p class="profile-section-title"><i class="fas fa-shield-alt" style="margin-right:6px;"></i>Session Info</p>
+
+                    {% if session_info %}
+                    <div class="profile-info-row">
+                        <div class="profile-info-icon" style="background:rgba(108,99,255,0.12); color:var(--primary-light);">
+                            <i class="fas fa-sign-in-alt"></i>
                         </div>
-                        {% else %}
-                        <div class="stat-card"
-                            style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-md); text-align: center;">
-                            <h2 style="color: var(--accent);">{{ user.tickets.count }}</h2>
-                            <p style="font-size: 0.9rem;">Support Tickets Raised</p>
+                        <div class="profile-info-content">
+                            <label>Total Logins</label>
+                            <span style="color:var(--primary-light); font-weight:700;">{{ session_info.login_count }}</span>
                         </div>
-                        {% endif %}
                     </div>
 
-                    <!-- ── Active Session Info ── -->
-                    {% if session_info %}
-                    <div style="margin-top: 1.5rem;">
-                        <h4 style="margin-bottom: 0.75rem;"><i class="fas fa-shield-alt"
-                                style="color: var(--secondary);"></i> Active Session</h4>
-                        <div
-                            style="background: var(--bg-card-hover); padding: 1rem; border-radius: var(--radius-md); font-size: 0.85rem;">
-                            <div style="margin-bottom: 0.5rem;">
-                                <span style="color: var(--text-muted);"><i class="fas fa-globe"></i> IP:</span>
-                                <span style="font-weight: 500; margin-left: 0.25rem;">{{ session_info.ip_address }}</span>
-                            </div>
-                            <div style="margin-bottom: 0.5rem;">
-                                <span style="color: var(--text-muted);"><i class="fas fa-desktop"></i> Device:</span>
-                                <span style="font-weight: 500; margin-left: 0.25rem; word-break: break-all;">{{ session_info.device_info|truncatechars:100 }}</span>
-                            </div>
-                            <div>
-                                <span style="color: var(--text-muted);"><i class="fas fa-clock"></i> Login:</span>
-                                <span style="font-weight: 500; margin-left: 0.25rem;">{{ session_info.logged_in_at|date:"d M Y, h:i A" }}</span>
-                            </div>
+                    <div class="profile-info-row">
+                        <div class="profile-info-icon" style="background:rgba(0,196,140,0.12); color:var(--success);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="profile-info-content">
+                            <label>Last Login</label>
+                            <span>{{ session_info.logged_in_at|date:"d M Y, h:i A" }}</span>
+                        </div>
+                    </div>
+
+                    {% if session_info.last_seen %}
+                    <div class="profile-info-row">
+                        <div class="profile-info-icon" style="background:rgba(0,180,216,0.12); color:#00b4d8;">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="profile-info-content">
+                            <label>Last Active</label>
+                            <span style="color:#00b4d8;">{{ session_info.last_seen|timesince }} ago</span>
                         </div>
                     </div>
                     {% endif %}
 
-                    <!-- ── Logout Actions ── -->
-                    <div style="margin-top: 2rem;">
-                        <a href="{% url 'logout' %}" class="btn btn-danger"
-                            style="width: 100%; text-decoration: none; display: block; text-align: center; margin-bottom: 0.75rem;">
-                            <i class="fas fa-sign-out-alt"></i> Logout This Device
-                        </a>
-                        <a href="{% url 'logout_all_devices' %}" class="btn"
-                            style="width: 100%; text-decoration: none; display: block; text-align: center; background: var(--bg-card-hover); border: 1px solid var(--danger); color: var(--danger);"
-                            onclick="return confirm('This will log you out from ALL devices. Continue?');">
-                            <i class="fas fa-power-off"></i> Logout from All Devices
-                        </a>
+                    {% else %}
+                    <div style="text-align:center; padding: 2rem 0; color:var(--text-muted);">
+                        <i class="fas fa-clock" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>
+                        <p style="font-size:0.9rem;">No session data yet.</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Logout Actions -->
+                    <div style="margin-top: 1.5rem;">
+                        <div class="logout-grid">
+                            <a href="{% url 'logout' %}" class="btn btn-danger"
+                                style="text-decoration:none; text-align:center; padding:10px;">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                            <a href="{% url 'logout_all_devices' %}" class="btn"
+                                style="text-decoration:none; text-align:center; padding:10px; background:transparent; border:1px solid var(--danger); color:var(--danger);"
+                                onclick="return confirm('This will log you out from ALL devices. Continue?');">
+                                <i class="fas fa-power-off"></i> All Devices
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
-
 
 </body>
 

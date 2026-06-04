@@ -87,6 +87,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'pyqapp.middleware.SingleDeviceLoginMiddleware',  # Single device login enforcement
+    'pyqapp.middleware.LastSeenMiddleware',           # Track last activity timestamp
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -249,9 +250,6 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     'pdf', 'doc', 'docx', 'txt',  # Documents
     'jpg', 'jpeg', 'png', 'gif',  # Images
 }
-
-# Device info max length (from User-Agent header)
-DEVICE_INFO_MAX_LENGTH = 512
 
 # Session key length
 SESSION_KEY_LENGTH = 40

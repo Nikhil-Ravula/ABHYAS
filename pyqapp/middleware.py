@@ -59,3 +59,48 @@ class SingleDeviceLoginMiddleware:
 
         response = self.get_response(request)
         return response
+
+
+class LastSeenMiddleware:
+    """
+    Updates UserSession.last_seen for logged-in users on each request.
+    Throttled to one DB write per user per 5 minutes to avoid excessive load.
+
+    Must be placed AFTER:
+    - SessionMiddleware (needs request.session)
+    - AuthenticationMiddleware (needs request.user)
+    """
+
+    THROTTLE_MINUTES = 5
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        if request.user.is_authenticated:
+            self._update_last_seen(request.user)
+
+        return response
+
+    def _update_last_seen(self, user):
+        """Update last_seen, but at most once every THROTTLE_MINUTES minutes."""
+        try:
+            from django.utils import timezone
+            from datetime import timedelta
+
+            session_record = user.user_session
+            now = timezone.now()
+
+            # Only write to DB if last_seen is unset or older than threshold
+            if (
+                session_record.last_seen is None
+                or now - session_record.last_seen > timedelta(minutes=self.THROTTLE_MINUTES)
+            ):
+                session_record.last_seen = now
+                session_record.save(update_fields=['last_seen'])
+
+        except Exception:
+            # Never crash the request because of activity tracking
+            pass
