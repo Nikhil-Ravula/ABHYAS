@@ -395,26 +395,14 @@ def student_dashboard(request):
             if iq_type:
                 iqs = iqs.filter(question_type=iq_type)
             if search:
-                # Try exact subject match first to avoid cross-subject mixing
+                # Search by subject name only — no hashtag cross-search to prevent mixing
                 exact = iqs.filter(subject__iexact=search)
                 if exact.exists():
                     iqs = exact
                 else:
-                    partial = iqs.filter(subject__icontains=search)
-                    if partial.exists():
-                        iqs = partial
-                    else:
-                        # Hashtag fallback — pin to ONE subject only
-                        matched_subject = iqs.filter(
-                            Q(subject__icontains=search) | Q(hashtags__icontains=search)
-                        ).values_list('subject', flat=True).first()
-                        if matched_subject:
-                            iqs = iqs.filter(subject=matched_subject)
-                        else:
-                            iqs = iqs.none()
+                    iqs = iqs.filter(subject__icontains=search)
 
             iqs = iqs.order_by('unit', 'question_type', 'question_number')
-
 
             # Track views
             if request.user.is_authenticated and search:
