@@ -463,7 +463,7 @@
                     if (groupKey !== currentGroup) {
                         if (currentGroup !== '') html += '</div></div>'; // close previous card-body and card
 
-                        const dlParams = new URLSearchParams({ search, unit: q.unit, type: q.type });
+                        const dlParams = new URLSearchParams({ search: q.subject, unit: q.unit, type: q.type });
                         const dlUrl = '/download-iq-pdf/?' + dlParams.toString();
 
                         html += `

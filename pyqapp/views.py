@@ -395,14 +395,12 @@ def student_dashboard(request):
             if iq_type:
                 iqs = iqs.filter(question_type=iq_type)
             if search:
-                # Search by subject name only — no hashtag cross-search to prevent mixing
-                exact = iqs.filter(subject__iexact=search)
-                if exact.exists():
-                    iqs = exact
-                else:
-                    iqs = iqs.filter(subject__icontains=search)
+                # Search by subject name or hashtag
+                iqs = iqs.filter(Q(subject__icontains=search) | Q(hashtags__icontains=search))
 
-            iqs = iqs.order_by('unit', 'question_type', 'question_number')
+            # CRITICAL: Order by subject first to prevent alternating subject cards
+            iqs = iqs.order_by('subject', 'unit', 'question_type', 'question_number')
+
 
             # Track views
             if request.user.is_authenticated and search:
