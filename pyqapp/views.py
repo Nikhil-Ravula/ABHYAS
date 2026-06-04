@@ -916,19 +916,33 @@ def download_iq_pdf(request):
     if not search:
         return HttpResponse("Search term is required.", status=400)
 
-    iqs = ImportantQuestionEntry.objects.filter(
-        Q(subject__icontains=search) | Q(hashtags__icontains=search)
-    )
-    
+    # ── Strict subject filter ─────────────────────────────────────────────────
+    # Try exact subject match first (case-insensitive).
+    # This prevents questions from other subjects leaking in via hashtag matches.
+    iqs = ImportantQuestionEntry.objects.filter(subject__iexact=search)
+
+    # If no exact match, try partial subject match (but NOT hashtags — avoids cross-subject mixing)
+    if not iqs.exists():
+        iqs = ImportantQuestionEntry.objects.filter(subject__icontains=search)
+
+    # If still nothing, fall back to hashtag search but pin to one subject only
+    if not iqs.exists():
+        matched = ImportantQuestionEntry.objects.filter(
+            Q(subject__icontains=search) | Q(hashtags__icontains=search)
+        ).values_list('subject', flat=True).first()
+        if matched:
+            iqs = ImportantQuestionEntry.objects.filter(subject=matched)
+
     if unit and unit.isdigit():
         iqs = iqs.filter(unit=int(unit))
     if iq_type:
         iqs = iqs.filter(question_type=iq_type)
-    
+
     iqs = iqs.order_by('question_number')
-    
+
     if not iqs.exists():
         return HttpResponse("No questions found.", status=404)
+
 
     # Track downloads
     if request.user.is_authenticated:
