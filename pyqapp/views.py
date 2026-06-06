@@ -253,13 +253,17 @@ def login_view(request):
                 request.session.save()
 
             # ── Save session record + increment login count ───────────────
-            UserSession.objects.update_or_create(
+            user_session, created = UserSession.objects.get_or_create(
                 user=user,
                 defaults={
                     'session_key': request.session.session_key,
-                    'login_count': F('login_count') + 1,
+                    'login_count': 1,
                 }
             )
+            if not created:
+                user_session.session_key = request.session.session_key
+                user_session.login_count = F('login_count') + 1
+                user_session.save(update_fields=['session_key', 'login_count'])
 
             logger.info(f"User {user.username} logged in successfully")
 
