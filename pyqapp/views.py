@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import os
+from datetime import datetime
 import unicodedata
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
@@ -54,7 +55,7 @@ except Exception:
 from .models import (
     Paper, Ticket, TicketReply, ImportantQuestionEntry,
     PaperView, PaperDownload, IQView, IQDownload, SiteVisit,
-    UserSession, Announcement
+    UserSession, Announcement, ActivityLog
 )
 
 # Setup logging
@@ -267,6 +268,10 @@ def login_view(request):
 
             logger.info(f"User {user.username} logged in successfully")
 
+            # ── Activity Log (exclude superusers) ─────────────────────────
+            if not user.is_superuser:
+                ActivityLog.objects.create(user=user, event_type='login')
+
             # Redirect to appropriate dashboard
             if user.is_superuser:
                 return redirect('admin_log')
@@ -345,6 +350,10 @@ def register_view(request):
 def logout_view(request):
     """Clear session record and log user out."""
     if request.user.is_authenticated:
+        # ── Activity Log (exclude superusers) ─────────────────────────
+        if not request.user.is_superuser:
+            ActivityLog.objects.create(user=request.user, event_type='logout')
+
         try:
             session_record = request.user.user_session
             session_record.session_key = None
@@ -361,6 +370,10 @@ def logout_view(request):
 @login_required
 def logout_all_devices_view(request):
     """Log out the user from all devices by invalidating the active session."""
+    # ── Activity Log (exclude superusers) ─────────────────────────────
+    if not request.user.is_superuser:
+        ActivityLog.objects.create(user=request.user, event_type='logout')
+
     try:
         session_record = request.user.user_session
         session_record.logout_all_devices()
@@ -440,6 +453,23 @@ def student_dashboard(request):
                     'uploader': q.uploaded_by.username,
                     'date': q.uploaded_at.strftime('%d %b, %Y')
                 })
+            # ── Activity Log: IQ Search (exclude superusers) ──────────
+            # Only log if query >= 3 chars and same query not logged in last 5s
+            # (prevents duplicate entries from live-typing on every keystroke)
+            if request.user.is_authenticated and search and len(search) >= 3 and not request.user.is_superuser:
+                from django.utils import timezone
+                import datetime as dt
+                recent_cutoff = timezone.now() - dt.timedelta(seconds=5)
+                already_logged = ActivityLog.objects.filter(
+                    user=request.user, event_type='search_iq',
+                    detail__iexact=search, created_at__gte=recent_cutoff
+                ).exists()
+                if not already_logged:
+                    ActivityLog.objects.create(
+                        user=request.user, event_type='search_iq',
+                        detail=search, results_count=len(results)
+                    )
+
             return JsonResponse(results, safe=False)
 
         # Paper Search
@@ -488,6 +518,22 @@ def student_dashboard(request):
                 'uploader': p.uploaded_by.username,
                 'date': p.uploaded_at.strftime('%d %b, %Y')
             })
+        # ── Activity Log: PYQ Search (exclude superusers) ─────────
+        # Only log if query >= 3 chars and same query not logged in last 5s
+        if request.user.is_authenticated and hashtag and len(hashtag) >= 3 and not request.user.is_superuser:
+            from django.utils import timezone
+            import datetime as dt
+            recent_cutoff = timezone.now() - dt.timedelta(seconds=5)
+            already_logged = ActivityLog.objects.filter(
+                user=request.user, event_type='search_pyq',
+                detail__iexact=hashtag, created_at__gte=recent_cutoff
+            ).exists()
+            if not already_logged:
+                ActivityLog.objects.create(
+                    user=request.user, event_type='search_pyq',
+                    detail=hashtag, results_count=len(results)
+                )
+
         return JsonResponse(results, safe=False)
 
     # Regular page load
@@ -1289,3 +1335,212 @@ def reply_ticket_view(request, ticket_id):
         messages.error(request, "Reply message cannot be empty")
 
     return redirect('admin_log')
+
+
+# ── Activity History PDF Download ────────────────────────────────────────────
+
+@never_cache
+@login_required
+def download_search_history_pdf(request):
+    """
+    Generate a PDF report of all user activity (login, logout, searches)
+    for non-superuser users. After download, all ActivityLog entries are
+    deleted so each PDF is a fresh snapshot.
+    """
+    if not request.user.is_superuser:
+        return redirect('dashboard')
+
+    logs = ActivityLog.objects.all().order_by('created_at')
+
+    # ── Build the PDF ─────────────────────────────────────────────────────
+    now = datetime.now()
+    filename = f"abhyas_searchhistory_{now.strftime('%d-%m-%Y_%H-%M')}.pdf"
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        leftMargin=40, rightMargin=40, topMargin=50, bottomMargin=50
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Title style
+    title_style = ParagraphStyle(
+        'ActivityTitle',
+        parent=styles['Title'],
+        fontName=_PDF_FONT_BOLD,
+        fontSize=18,
+        spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        'ActivitySubtitle',
+        parent=styles['Normal'],
+        fontName=_PDF_FONT,
+        fontSize=9,
+        textColor=grey,
+        alignment=TA_CENTER,
+        spaceAfter=20,
+    )
+    from reportlab.lib.colors import HexColor, white
+    normal_style = ParagraphStyle(
+        'ActivityNormal',
+        parent=styles['Normal'],
+        fontName=_PDF_FONT,
+        fontSize=9,
+        leading=13,
+        textColor=HexColor('#e0e0e0'),
+    )
+    header_style = ParagraphStyle(
+        'ActivityHeader',
+        parent=styles['Normal'],
+        fontName=_PDF_FONT_BOLD,
+        fontSize=9,
+        leading=13,
+        textColor=white,
+    )
+
+    # Title
+    story.append(Paragraph('ABHYAS — Activity Report', title_style))
+    story.append(Paragraph(
+        f"Generated on {now.strftime('%d %b %Y at %I:%M %p')}",
+        subtitle_style
+    ))
+    story.append(HRFlowable(
+        width='100%', thickness=1, color=grey,
+        spaceAfter=14, spaceBefore=4
+    ))
+
+    if not logs.exists():
+        empty_style = ParagraphStyle(
+            'ActivityEmpty',
+            parent=styles['Normal'],
+            fontName=_PDF_FONT,
+            fontSize=12,
+            alignment=TA_CENTER,
+            spaceAfter=20,
+            spaceBefore=40,
+        )
+        story.append(Paragraph(
+            'No activity recorded since last download.',
+            empty_style
+        ))
+    else:
+        # Build table data
+        from reportlab.platypus import Table, TableStyle
+        from reportlab.lib import colors
+
+        table_data = [[
+            Paragraph('#', header_style),
+            Paragraph('User', header_style),
+            Paragraph('Event', header_style),
+            Paragraph('Details', header_style),
+            Paragraph('Date & Time', header_style),
+        ]]
+
+        for idx, log in enumerate(logs, 1):
+            # Determine event display
+            if log.event_type == 'login':
+                event_str = 'Login'
+                detail_str = '\u2014'
+            elif log.event_type == 'logout':
+                event_str = 'Logout'
+                detail_str = '\u2014'
+            elif log.event_type in ('search_pyq', 'search_iq'):
+                search_label = 'PYQ' if log.event_type == 'search_pyq' else 'IQ'
+
+                # Determine status
+                if log.results_count is not None and log.results_count == 0:
+                    status = 'Not Found'
+                else:
+                    # Check for downloads first, then views
+                    if log.event_type == 'search_pyq':
+                        has_download = PaperDownload.objects.filter(
+                            user=log.user,
+                            paper__subject__iexact=log.detail
+                        ).exists() or PaperDownload.objects.filter(
+                            user=log.user,
+                            paper__hashtags__icontains=log.detail
+                        ).exists()
+                        if has_download:
+                            status = 'Downloaded'
+                        else:
+                            status = 'Viewed'
+                    else:  # search_iq
+                        has_download = IQDownload.objects.filter(
+                            user=log.user,
+                            subject__iexact=log.detail
+                        ).exists()
+                        if has_download:
+                            status = 'Downloaded'
+                        else:
+                            status = 'Viewed'
+
+                event_str = f'Search {search_label}'
+                detail_str = f'{log.detail} \u2014 {status}'
+            else:
+                event_str = log.event_type
+                detail_str = log.detail or '\u2014'
+
+            time_str = log.created_at.strftime('%d %b, %Y \u00b7 %I:%M %p')
+
+            table_data.append([
+                Paragraph(str(idx), normal_style),
+                Paragraph(log.user.username, normal_style),
+                Paragraph(event_str, normal_style),
+                Paragraph(detail_str, normal_style),
+                Paragraph(time_str, normal_style),
+            ])
+
+        table = Table(
+            table_data,
+            colWidths=[30, 80, 75, 190, 140],
+            repeatRows=1
+        )
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d2d3f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#444466')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [
+                colors.HexColor('#1a1a2e'),
+                colors.HexColor('#16162a'),
+            ]),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#e0e0e0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(table)
+
+        # Summary footer
+        story.append(Spacer(1, 20))
+        total = logs.count()
+        logins = logs.filter(event_type='login').count()
+        logouts = logs.filter(event_type='logout').count()
+        searches = logs.filter(event_type__startswith='search').count()
+        summary_style = ParagraphStyle(
+            'ActivitySummary',
+            parent=styles['Normal'],
+            fontName=_PDF_FONT,
+            fontSize=9,
+            textColor=grey,
+        )
+        story.append(Paragraph(
+            f'Total entries: {total} &nbsp;|&nbsp; '
+            f'Logins: {logins} &nbsp;|&nbsp; '
+            f'Logouts: {logouts} &nbsp;|&nbsp; '
+            f'Searches: {searches}',
+            summary_style
+        ))
+
+    doc.build(story, onFirstPage=draw_page_border, onLaterPages=draw_page_border)
+
+    # ── Clear all activity log entries ────────────────────────────────────
+    ActivityLog.objects.all().delete()
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response

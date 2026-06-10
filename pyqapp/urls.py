@@ -20,4 +20,5 @@ urlpatterns = [
     path('delete-iq/', views.delete_iq, name='delete_iq'),
     path('edit-paper/<int:paper_id>/', views.edit_paper, name='edit_paper'),
     path('edit-iq/', views.edit_iq, name='edit_iq'),
+    path('download-search-history-pdf/', views.download_search_history_pdf, name='download_search_history_pdf'),
 ]

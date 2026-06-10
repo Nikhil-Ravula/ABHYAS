@@ -186,3 +186,29 @@ class UserSession(models.Model):
                 pass  # Session already expired or was deleted
             self.session_key = None
             self.save(update_fields=['session_key'])
+
+
+class ActivityLog(models.Model):
+    """
+    Tracks user activity (login, logout, searches) for admin PDF reports.
+    Entries are deleted after each PDF download — each report is a fresh snapshot.
+    Superuser activity is never logged.
+    """
+    EVENT_TYPES = [
+        ('login', 'Login'),
+        ('logout', 'Logout'),
+        ('search_pyq', 'Search PYQ'),
+        ('search_iq', 'Search IQ'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activity_logs')
+    event_type = models.CharField(max_length=15, choices=EVENT_TYPES)
+    detail = models.CharField(max_length=255, blank=True)  # search query; empty for login/logout
+    results_count = models.IntegerField(null=True, blank=True)  # only for search events
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} — {self.event_type} — {self.created_at:%d %b %Y %H:%M}"

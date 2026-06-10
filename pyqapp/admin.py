@@ -1,9 +1,10 @@
 from django.contrib import admin
-from .models import Paper, Ticket, TicketReply, UserSession
+from .models import Paper, Ticket, TicketReply, UserSession, ActivityLog
 
 admin.site.register(Paper)
 admin.site.register(Ticket)
 admin.site.register(TicketReply)
+admin.site.register(ActivityLog)
 
 
 # ── User Session Admin: shows login activity without any PII ──────────────────

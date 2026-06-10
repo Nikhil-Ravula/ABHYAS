@@ -1021,6 +1021,14 @@
 
             <!-- ============ TAB 5: Paper Stats ============ -->
             <div class="tab-content" id="tab-paper-stats">
+                <!-- Download Activity PDF Button -->
+                <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+                    <a href="{% url 'download_search_history_pdf' %}" class="btn btn-primary"
+                        style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;"
+                        onclick="return confirm('Download activity report? All log entries will be cleared after download.');">
+                        <i class="fas fa-file-pdf"></i> Download Activity PDF
+                    </a>
+                </div>
                 <!-- PYQ Stats -->
                 <div class="card" style="overflow: hidden; margin-bottom: 24px;">
                     <div class="card-header">
