@@ -25,6 +25,7 @@ from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 from django.utils.html import escape
+from django.utils import timezone
 from django.core.cache import cache
 
 import requests as http_requests
@@ -281,8 +282,20 @@ def login_view(request):
         else:
             # ── Record failed attempt ─────────────────────────────────────
             _record_failed_attempt(login_input)
-            messages.error(request, "Invalid username/email or password. Try logging in with your email address.")
-            logger.warning(f"Failed login attempt for: {login_input}")
+            messages.error(request, "Invalid username/email or password.")
+
+            # Determine specific failure reason for admin logs
+            if '@' in login_input:
+                if User.objects.filter(email__iexact=login_input).exists():
+                    fail_reason = "password mismatch (email exists)"
+                else:
+                    fail_reason = "email not found"
+            else:
+                if User.objects.filter(username=login_input).exists():
+                    fail_reason = "password mismatch (username exists)"
+                else:
+                    fail_reason = "account not found"
+            logger.warning(f"Failed login attempt for: {login_input} | Reason: {fail_reason}")
 
     return render(request, 'pyqapp/login.html')
 
@@ -427,11 +440,8 @@ def student_dashboard(request):
 
             # Track views
             if request.user.is_authenticated and search:
-                viewed_subjects = set()
                 for q in iqs:
-                    if q.subject not in viewed_subjects:
-                        IQView.objects.get_or_create(subject=q.subject, user=request.user)
-                        viewed_subjects.add(q.subject)
+                    IQView.objects.create(subject=q.subject, user=request.user)
             
             results = []
             for q in iqs:
@@ -502,7 +512,7 @@ def student_dashboard(request):
         # Track views
         if request.user.is_authenticated:
             for p in papers:
-                PaperView.objects.get_or_create(paper=p, user=request.user)
+                PaperView.objects.create(paper=p, user=request.user)
 
         results = []
         for p in papers:
@@ -871,8 +881,8 @@ def admin_log_view(request):
     tickets = Ticket.objects.all().order_by('-created_at').prefetch_related('replies', 'replies__author', 'student')
     
     all_papers = Paper.objects.all().annotate(
-        unique_views=Count('views', distinct=True),
-        unique_downloads=Count('downloads', distinct=True)
+        total_views=Count('views'),
+        total_downloads=Count('downloads')
     ).order_by('-uploaded_at')
 
     iq_subjects = ImportantQuestionEntry.objects.values('subject').annotate(
@@ -885,8 +895,8 @@ def admin_log_view(request):
         iq_stats.append({
             'subject': subject,
             'total_questions': iq['total_questions'],
-            'unique_views': IQView.objects.filter(subject=subject).count(),
-            'unique_downloads': IQDownload.objects.filter(subject=subject).count(),
+            'total_views': IQView.objects.filter(subject=subject).count(),
+            'total_downloads': IQDownload.objects.filter(subject=subject).count(),
         })
 
     unique_visitors = SiteVisit.objects.count()
@@ -942,7 +952,7 @@ def view_paper(request, paper_id):
     paper = get_object_or_404(Paper, id=paper_id)
 
     if request.user.is_authenticated:
-        PaperView.objects.get_or_create(paper=paper, user=request.user)
+        PaperView.objects.create(paper=paper, user=request.user)
 
     content = _get_paper_content(paper)
     if content is None:
@@ -960,7 +970,7 @@ def download_paper(request, paper_id):
     paper = get_object_or_404(Paper, id=paper_id)
 
     if request.user.is_authenticated:
-        PaperDownload.objects.get_or_create(paper=paper, user=request.user)
+        PaperDownload.objects.create(paper=paper, user=request.user)
 
     content = _get_paper_content(paper)
     if content is None:
@@ -1010,11 +1020,8 @@ def download_iq_pdf(request):
 
     # Track downloads
     if request.user.is_authenticated:
-        seen_subjects = set()
         for q in iqs:
-            if q.subject not in seen_subjects:
-                IQDownload.objects.get_or_create(subject=q.subject, user=request.user)
-                seen_subjects.add(q.subject)
+            IQDownload.objects.create(subject=q.subject, user=request.user)
 
     subject_name = search
     filename = f"{subject_name}_unit{unit}_{iq_type}.pdf".replace(" ", "_")
@@ -1353,7 +1360,9 @@ def download_search_history_pdf(request):
     logs = ActivityLog.objects.all().order_by('created_at')
 
     # ── Build the PDF ─────────────────────────────────────────────────────
-    now = datetime.now()
+    import datetime as dt
+    ist_tz = dt.timezone(dt.timedelta(hours=5, minutes=30))
+    now = timezone.now().astimezone(ist_tz)
     filename = f"abhyas_searchhistory_{now.strftime('%d-%m-%Y_%H-%M')}.pdf"
 
     buffer = io.BytesIO()
@@ -1481,7 +1490,7 @@ def download_search_history_pdf(request):
                 event_str = log.event_type
                 detail_str = log.detail or '\u2014'
 
-            time_str = log.created_at.strftime('%d %b, %Y \u00b7 %I:%M %p')
+            time_str = timezone.localtime(log.created_at).strftime('%d %b, %Y \u00b7 %I:%M %p')
 
             table_data.append([
                 Paragraph(str(idx), normal_style),
@@ -1542,5 +1551,224 @@ def download_search_history_pdf(request):
 
     buffer.seek(0)
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+# ── Paper Stats PDF Download ─────────────────────────────────────────────────
+
+@never_cache
+@login_required
+def download_paper_stats_pdf(request):
+    """
+    Generate a PDF report of PYQ and IQ stats grouped by subject.
+    PYQ papers are combined by subject regardless of year/regulation/branch.
+    """
+    if not request.user.is_superuser:
+        return redirect('dashboard')
+
+    from reportlab.platypus import Table, TableStyle, Spacer, SimpleDocTemplate, Paragraph, HRFlowable
+    from reportlab.lib import colors
+    from reportlab.lib.colors import HexColor, white
+
+    import datetime as dt
+    ist_tz = dt.timezone(dt.timedelta(hours=5, minutes=30))
+    now = timezone.now().astimezone(ist_tz)
+    filename = f"abhyas_paperstats_{now.strftime('%d-%m-%Y_%H-%M')}.pdf"
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        leftMargin=40, rightMargin=40, topMargin=50, bottomMargin=50
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Styles
+    title_style = ParagraphStyle(
+        'StatsTitle', parent=styles['Title'],
+        fontName=_PDF_FONT_BOLD, fontSize=18, spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        'StatsSubtitle', parent=styles['Normal'],
+        fontName=_PDF_FONT, fontSize=9, textColor=grey,
+        alignment=TA_CENTER, spaceAfter=20,
+    )
+    section_style = ParagraphStyle(
+        'StatsSection', parent=styles['Heading2'],
+        fontName=_PDF_FONT_BOLD, fontSize=13, spaceAfter=10,
+        spaceBefore=20, textColor=HexColor('#e0e0e0'),
+    )
+    header_style = ParagraphStyle(
+        'StatsHeader', parent=styles['Normal'],
+        fontName=_PDF_FONT_BOLD, fontSize=9, leading=13, textColor=white,
+    )
+    normal_style = ParagraphStyle(
+        'StatsNormal', parent=styles['Normal'],
+        fontName=_PDF_FONT, fontSize=9, leading=13, textColor=HexColor('#e0e0e0'),
+    )
+    summary_style = ParagraphStyle(
+        'StatsSummary', parent=styles['Normal'],
+        fontName=_PDF_FONT, fontSize=9, textColor=grey,
+    )
+
+    table_style_def = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2d2d3f')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#444466')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [
+            HexColor('#1a1a2e'), HexColor('#16162a'),
+        ]),
+        ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#e0e0e0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+    ])
+
+    # Title
+    story.append(Paragraph('ABHYAS — Paper Stats Report', title_style))
+    story.append(Paragraph(
+        f"Generated on {now.strftime('%d %b %Y at %I:%M %p')}",
+        subtitle_style
+    ))
+    story.append(HRFlowable(
+        width='100%', thickness=1, color=grey,
+        spaceAfter=14, spaceBefore=4
+    ))
+
+    # ── PYQ Stats by Subject ──────────────────────────────────────────────
+    story.append(Paragraph('PYQ Papers — Stats by Subject', section_style))
+
+    # Group PYQ papers by subject (case-insensitive), sum views & downloads
+    from django.db.models.functions import Lower
+    pyq_stats = Paper.objects.values(
+        subject_lower=Lower('subject')
+    ).annotate(
+        total_papers=Count('id'),
+        total_views=Count('views'),
+        total_downloads=Count('downloads'),
+    ).order_by('subject_lower')
+
+    # Get the original subject name (first occurrence)
+    subject_names = {}
+    for p in Paper.objects.values_list('subject', flat=True):
+        key = p.lower()
+        if key not in subject_names:
+            subject_names[key] = p
+
+    pyq_table_data = [[
+        Paragraph('#', header_style),
+        Paragraph('Subject', header_style),
+        Paragraph('Papers', header_style),
+        Paragraph('Views', header_style),
+        Paragraph('Downloads', header_style),
+    ]]
+
+    grand_papers = grand_views = grand_downloads = 0
+    for idx, stat in enumerate(pyq_stats, 1):
+        subj = subject_names.get(stat['subject_lower'], stat['subject_lower'])
+        grand_papers += stat['total_papers']
+        grand_views += stat['total_views']
+        grand_downloads += stat['total_downloads']
+        pyq_table_data.append([
+            Paragraph(str(idx), normal_style),
+            Paragraph(subj, normal_style),
+            Paragraph(str(stat['total_papers']), normal_style),
+            Paragraph(str(stat['total_views']), normal_style),
+            Paragraph(str(stat['total_downloads']), normal_style),
+        ])
+
+    if len(pyq_table_data) > 1:
+        pyq_table = Table(pyq_table_data, colWidths=[30, 250, 60, 70, 80], repeatRows=1)
+        pyq_table.setStyle(table_style_def)
+        story.append(pyq_table)
+        story.append(Spacer(1, 8))
+        story.append(Paragraph(
+            f'Total: {grand_papers} papers &nbsp;|&nbsp; '
+            f'{grand_views} views &nbsp;|&nbsp; '
+            f'{grand_downloads} downloads',
+            summary_style
+        ))
+    else:
+        story.append(Paragraph('No PYQ papers uploaded yet.', normal_style))
+
+    # ── IQ Stats by Subject ───────────────────────────────────────────────
+    story.append(Spacer(1, 20))
+    story.append(Paragraph('Important Questions — Stats by Subject', section_style))
+
+    iq_subjects = ImportantQuestionEntry.objects.values('subject').annotate(
+        total_questions=Count('id')
+    ).order_by('subject')
+
+    iq_table_data = [[
+        Paragraph('#', header_style),
+        Paragraph('Subject', header_style),
+        Paragraph('Questions', header_style),
+        Paragraph('Views', header_style),
+        Paragraph('Downloads', header_style),
+    ]]
+
+    iq_grand_q = iq_grand_views = iq_grand_downloads = 0
+    for idx, iq in enumerate(iq_subjects, 1):
+        subject = iq['subject']
+        views = IQView.objects.filter(subject=subject).count()
+        downloads = IQDownload.objects.filter(subject=subject).count()
+        iq_grand_q += iq['total_questions']
+        iq_grand_views += views
+        iq_grand_downloads += downloads
+        iq_table_data.append([
+            Paragraph(str(idx), normal_style),
+            Paragraph(subject, normal_style),
+            Paragraph(str(iq['total_questions']), normal_style),
+            Paragraph(str(views), normal_style),
+            Paragraph(str(downloads), normal_style),
+        ])
+
+    if len(iq_table_data) > 1:
+        iq_table = Table(iq_table_data, colWidths=[30, 250, 70, 70, 80], repeatRows=1)
+        iq_table.setStyle(table_style_def)
+        story.append(iq_table)
+        story.append(Spacer(1, 8))
+        story.append(Paragraph(
+            f'Total: {iq_grand_q} questions &nbsp;|&nbsp; '
+            f'{iq_grand_views} views &nbsp;|&nbsp; '
+            f'{iq_grand_downloads} downloads',
+            summary_style
+        ))
+    else:
+        story.append(Paragraph('No important questions uploaded yet.', normal_style))
+
+    doc.build(story, onFirstPage=draw_page_border, onLaterPages=draw_page_border)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def download_error_log(request):
+    """Download the django.log file as a text file. Admin-only."""
+    if not request.user.is_superuser:
+        return redirect('dashboard')
+
+    log_path = os.path.join(settings.BASE_DIR, 'logs', 'django.log')
+
+    if not os.path.exists(log_path) or os.path.getsize(log_path) == 0:
+        messages.error(request, "No error log entries found.")
+        return redirect('admin_log')
+
+    import datetime as dt
+    ist_tz = dt.timezone(dt.timedelta(hours=5, minutes=30))
+    now = timezone.now().astimezone(ist_tz)
+    filename = f"abhyas_errorlog_{now.strftime('%d-%m-%Y_%H-%M')}.log"
+
+    with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+        content = f.read()
+
+    response = HttpResponse(content, content_type='text/plain; charset=utf-8')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response

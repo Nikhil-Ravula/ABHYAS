@@ -87,9 +87,6 @@ class PaperView(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     viewed_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ('paper', 'user')
-
     def __str__(self):
         return f"{self.user.username} viewed {self.paper.subject}"
 
@@ -98,9 +95,6 @@ class PaperDownload(models.Model):
     paper = models.ForeignKey(Paper, on_delete=models.CASCADE, related_name='downloads')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     downloaded_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('paper', 'user')
 
     def __str__(self):
         return f"{self.user.username} downloaded {self.paper.subject}"
@@ -111,9 +105,6 @@ class IQView(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     viewed_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ('subject', 'user')
-
     def __str__(self):
         return f"{self.user.username} viewed IQ: {self.subject}"
 
@@ -122,9 +113,6 @@ class IQDownload(models.Model):
     subject = models.CharField(max_length=200)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     downloaded_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('subject', 'user')
 
     def __str__(self):
         return f"{self.user.username} downloaded IQ: {self.subject}"

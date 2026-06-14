@@ -263,6 +263,28 @@ if not DEBUG:
     EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 
+# Set logging converter to IST (UTC+5:30)
+import time
+import datetime as dt
+import logging
+
+def ist_converter(*args, **kwargs):
+    secs = None
+    for arg in args:
+        if isinstance(arg, (int, float)):
+            secs = arg
+            break
+    if secs is None:
+        secs = time.time()
+    # Convert seconds since Epoch to UTC aware datetime
+    utc_dt = dt.datetime.fromtimestamp(secs, dt.timezone.utc)
+    # Convert UTC to IST (UTC+5:30)
+    ist_tz = dt.timezone(dt.timedelta(hours=5, minutes=30))
+    ist_dt = utc_dt.astimezone(ist_tz)
+    return ist_dt.timetuple()
+
+logging.Formatter.converter = ist_converter
+
 # Logging configuration
 LOGGING = {
     'version': 1,
@@ -313,6 +335,18 @@ LOGGING = {
             'handlers': ['console', 'file'],
             'level': 'INFO',
         },
+        # Captures all 4xx/5xx request errors with full tracebacks
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        # Captures dev server errors (also useful for WSGI runtime errors)
+        'django.server': {
+            'handlers': ['console', 'file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
         'django.security': {
             'handlers': ['security_file'],
             'level': 'WARNING',
@@ -321,6 +355,12 @@ LOGGING = {
             'handlers': ['console', 'file'],
             'level': 'DEBUG' if DEBUG else 'INFO',
         },
+    },
+    # Root logger — catches ANY unhandled exception from any module
+    # This is the equivalent of what PythonAnywhere's error.log captures
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'ERROR',
     },
 }
 

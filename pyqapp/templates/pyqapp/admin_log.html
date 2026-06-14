@@ -513,6 +513,7 @@
                 <button class="tab-btn" onclick="switchTab('paper-stats')"><i class="fas fa-chart-bar"></i> Paper
                     Stats</button>
                 <button class="tab-btn" onclick="switchTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
+                <button class="tab-btn" onclick="switchTab('downloads')"><i class="fas fa-download"></i> Downloads</button>
             </div>
 
             <!-- ============ TAB 1: Staff List ============ -->
@@ -577,76 +578,69 @@
                 </div>
             </div>
 
-            <!-- ============ TAB: All Users ============ -->
-            <div class="tab-content" id="tab-all-users">
-                <div class="card" style="overflow: hidden;">
-                    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-                        <h3 class="card-title"><i class="fas fa-user-group" style="color:var(--secondary)"></i> All Registered Users</h3>
-                        <span style="font-size:0.85rem; color:var(--text-muted);">{{ all_users.count }} student{{ all_users.count|pluralize }}</span>
-                    </div>
-                    <!-- Search bar -->
-                    <div style="padding: 16px 24px 0;">
-                        <input type="text" id="user-search" class="form-control" placeholder="🔍  Search by username or email..." oninput="filterUsers(this.value)" style="max-width:400px;">
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="data-table" id="all-users-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Username</th>
-                                    <th>Email</th>
-                                    <th>Joined</th>
-                                    <th>Last Seen</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="all-users-tbody">
-                                {% for u in all_users %}
-                                <tr>
-                                    <td style="color:var(--text-muted); font-size:0.82rem;">{{ forloop.counter }}</td>
-                                    <td>
-                                        <div class="staff-info">
-                                            <div class="staff-avatar" style="background: linear-gradient(135deg, var(--secondary), var(--accent));">{{ u.username|first|upper }}</div>
-                                            <span>{{ u.username }}</span>
-                                        </div>
-                                    </td>
-                                    <td>{{ u.email|default:"—" }}</td>
-                                    <td>{{ u.date_joined|date:"d M, Y" }}</td>
-                                    <td>
-                                        {% if u.user_session.last_seen %}
-                                            <span title="{{ u.user_session.last_seen|date:'d M Y, H:i' }}" style="color:var(--success);">
-                                                <i class="fas fa-circle" style="font-size:0.5rem; vertical-align:middle;"></i>
-                                                {{ u.user_session.last_seen|timesince }} ago
-                                            </span>
-                                        {% elif u.user_session.logged_in_at %}
-                                            <span title="{{ u.user_session.logged_in_at|date:'d M Y, H:i' }}" style="color:var(--text-muted);">
-                                                {{ u.user_session.logged_in_at|timesince }} ago
-                                                <small style="font-size:0.72rem;">(last login)</small>
-                                            </span>
-                                        {% else %}
-                                            <span style="color: var(--text-muted);">Never</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if u.is_active %}
-                                            <span class="status-badge badge-resolved">Active</span>
-                                        {% else %}
-                                            <span class="status-badge badge-open">Inactive</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" style="text-align:center; color:var(--text-muted); padding:40px;">
-                                        <i class="fas fa-users" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>
-                                        No registered students yet.
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <!-- ============ TAB: All Users ============ -->\r
+            <div class="tab-content" id="tab-all-users">\r
+                <div class="card" style="overflow: hidden;">\r
+                    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">\r
+                        <h3 class="card-title"><i class="fas fa-user-group" style="color:var(--secondary)"></i> All Registered Users</h3>\r
+                        <span style="font-size:0.85rem; color:var(--text-muted);">{{ all_users.count }} student{{ all_users.count|pluralize }}</span>\r
+                    </div>\r
+                    <!-- Search bar -->\r
+                    <div style="padding: 16px 24px 0;">\r
+                        <input type="text" id="user-search" class="form-control" placeholder="🔍  Search by username or email..." oninput="filterUsers(this.value)" style="max-width:400px;">\r
+                    </div>\r
+                    <div class="table-wrapper">\r
+                        <table class="data-table" id="all-users-table">\r
+                            <thead>\r
+                                <tr>\r
+                                    <th>#</th>\r
+                                    <th>Username</th>\r
+                                    <th>Email</th>\r
+                                    <th>Joined</th>\r
+                                    <th>Last Seen</th>\r
+                                </tr>\r
+                            </thead>\r
+                            <tbody id="all-users-tbody">\r
+                                {% for u in all_users %}\r
+                                <tr>\r
+                                    <td style="color:var(--text-muted); font-size:0.82rem;">{{ forloop.counter }}</td>\r
+                                    <td>\r
+                                        <div class="staff-info">\r
+                                            <div class="staff-avatar" style="background: linear-gradient(135deg, var(--secondary), var(--accent));">{{ u.username|first|upper }}</div>\r
+                                            <span>{{ u.username }}</span>\r
+                                        </div>\r
+                                    </td>\r
+                                    <td>{{ u.email|default:"—" }}</td>\r
+                                    <td>{{ u.date_joined|date:"d M, Y" }}</td>\r
+                                    <td>\r
+                                        {% if u.user_session.last_seen %}\r
+                                            <span class="last-seen-indicator" data-timestamp="{{ u.user_session.last_seen|date:'c' }}" title="{{ u.user_session.last_seen|date:'d M Y, H:i' }}">\r
+                                                <i class="fas fa-circle" style="font-size:0.5rem; vertical-align:middle;"></i>\r
+                                                {{ u.user_session.last_seen|timesince }} ago\r
+                                            </span>\r
+                                        {% elif u.user_session.logged_in_at %}\r
+                                            <span class="last-seen-indicator" data-timestamp="{{ u.user_session.logged_in_at|date:'c' }}" title="{{ u.user_session.logged_in_at|date:'d M Y, H:i' }}">\r
+                                                <i class="fas fa-circle" style="font-size:0.5rem; vertical-align:middle;"></i>\r
+                                                {{ u.user_session.logged_in_at|timesince }} ago\r
+                                                <small style="font-size:0.72rem;">(last login)</small>\r
+                                            </span>\r
+                                        {% else %}\r
+                                            <span style="color: var(--text-muted);">Never</span>\r
+                                        {% endif %}\r
+                                    </td>\r
+                                </tr>\r
+                                {% empty %}\r
+                                <tr>\r
+                                    <td colspan="5" style="text-align:center; color:var(--text-muted); padding:40px;">\r
+                                        <i class="fas fa-users" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>\r
+                                        No registered students yet.\r
+                                    </td>\r
+                                </tr>\r
+                                {% endfor %}\r
+                            </tbody>\r
+                        </table>\r
+                    </div>\r
+                </div>\r
             </div>
 
             <!-- ============ TAB 2: Create Staff ============ -->
@@ -1021,14 +1015,7 @@
 
             <!-- ============ TAB 5: Paper Stats ============ -->
             <div class="tab-content" id="tab-paper-stats">
-                <!-- Download Activity PDF Button -->
-                <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
-                    <a href="{% url 'download_search_history_pdf' %}" class="btn btn-primary"
-                        style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;"
-                        onclick="return confirm('Download activity report? All log entries will be cleared after download.');">
-                        <i class="fas fa-file-pdf"></i> Download Activity PDF
-                    </a>
-                </div>
+
                 <!-- PYQ Stats -->
                 <div class="card" style="overflow: hidden; margin-bottom: 24px;">
                     <div class="card-header">
@@ -1056,8 +1043,8 @@
                                     <td>{{ p.year }}</td>
                                     <td><span class="status-badge badge-pending" style="font-size:0.7rem;">{{ p.branch }}</span></td>
                                     <td>{{ p.regulation }}</td>
-                                    <td style="text-align:center; font-weight:700; color:var(--secondary);">{{ p.unique_views }}</td>
-                                    <td style="text-align:center; font-weight:700; color:var(--success);">{{ p.unique_downloads }}</td>
+                                    <td style="text-align:center; font-weight:700; color:var(--secondary);">{{ p.total_views }}</td>
+                                    <td style="text-align:center; font-weight:700; color:var(--success);">{{ p.total_downloads }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
@@ -1093,8 +1080,8 @@
                                     <td>{{ forloop.counter }}</td>
                                     <td style="font-weight:600;">{{ iq.subject }}</td>
                                     <td style="text-align:center;">{{ iq.total_questions }}</td>
-                                    <td style="text-align:center; font-weight:700; color:var(--secondary);">{{ iq.unique_views }}</td>
-                                    <td style="text-align:center; font-weight:700; color:var(--success);">{{ iq.unique_downloads }}</td>
+                                    <td style="text-align:center; font-weight:700; color:var(--secondary);">{{ iq.total_views }}</td>
+                                    <td style="text-align:center; font-weight:700; color:var(--success);">{{ iq.total_downloads }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
@@ -1216,6 +1203,61 @@
                 </div>
             </div>
 
+            <!-- ============ TAB 7: Downloads ============ -->
+            <div class="tab-content" id="tab-downloads">
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:24px;">
+
+                    <!-- Search History PDF -->
+                    <div class="card" style="text-align:center; padding:40px 30px;">
+                        <div style="width:70px; height:70px; border-radius:var(--radius-sm); background:linear-gradient(135deg, rgba(108,99,255,0.2), rgba(108,99,255,0.05)); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:1.8rem; color:var(--primary-light);">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h3 style="font-family:var(--font-heading); margin-bottom:8px;">Search History</h3>
+                        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:24px; line-height:1.6;">
+                            Download a PDF report of all user activity — logins, logouts, and search queries.
+                            <br><small style="color:var(--warning);"><i class="fas fa-exclamation-triangle"></i> Log entries will be cleared after download.</small>
+                        </p>
+                        <a href="{% url 'download_search_history_pdf' %}" class="btn btn-primary"
+                            style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; padding:12px 28px;"
+                            onclick="return confirm('Download activity report? All log entries will be cleared after download.');">
+                            <i class="fas fa-download"></i> Download Activity PDF
+                        </a>
+                    </div>
+
+                    <!-- Error Log -->
+                    <div class="card" style="text-align:center; padding:40px 30px;">
+                        <div style="width:70px; height:70px; border-radius:var(--radius-sm); background:linear-gradient(135deg, rgba(255,101,132,0.2), rgba(255,101,132,0.05)); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:1.8rem; color:var(--accent);">
+                            <i class="fas fa-bug"></i>
+                        </div>
+                        <h3 style="font-family:var(--font-heading); margin-bottom:8px;">Error Log</h3>
+                        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:24px; line-height:1.6;">
+                            Download the server error log (django.log) — includes failed logins, exceptions, and request errors.
+                        </p>
+                        <a href="{% url 'download_error_log' %}" class="btn btn-primary"
+                            style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; padding:12px 28px; background:linear-gradient(135deg, var(--accent), #e0457b);">
+                            <i class="fas fa-download"></i> Download Error Log
+                        </a>
+                    </div>
+
+                    <!-- Paper Stats PDF -->
+                    <div class="card" style="text-align:center; padding:40px 30px;">
+                        <div style="width:70px; height:70px; border-radius:var(--radius-sm); background:linear-gradient(135deg, rgba(0,196,140,0.2), rgba(0,196,140,0.05)); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:1.8rem; color:var(--success);">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <h3 style="font-family:var(--font-heading); margin-bottom:8px;">Paper Stats</h3>
+                        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:24px; line-height:1.6;">
+                            Download a PDF report of PYQ &amp; IQ stats grouped by subject &mdash; total papers, views, and downloads.
+                        </p>
+                        <a href="{% url 'download_paper_stats_pdf' %}" class="btn btn-primary"
+                            style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; padding:12px 28px; background:linear-gradient(135deg, var(--success), #00a67d);">
+                            <i class="fas fa-download"></i> Download Stats PDF
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+
+
         </div>
     </div>
 
@@ -1261,13 +1303,28 @@
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
 
-        // Count open tickets & initialize questions
+        // Count open tickets, initialize questions & color-code last seen
         document.addEventListener('DOMContentLoaded', () => {
             const openCount = document.querySelectorAll('.badge-open').length;
             const el = document.getElementById('open-count');
             if (el) el.textContent = openCount;
 
             addMoreQuestions();
+
+            // Color-code last seen indicators
+            const now = new Date();
+            const ONE_DAY = 24 * 60 * 60 * 1000;
+            document.querySelectorAll('.last-seen-indicator').forEach(span => {
+                const ts = new Date(span.dataset.timestamp);
+                const diff = now - ts;
+                if (diff < ONE_DAY) {
+                    span.style.color = 'var(--success)';       // Green: < 1 day
+                } else if (diff < 2 * ONE_DAY) {
+                    span.style.color = 'var(--warning)';       // Yellow: 1-2 days
+                } else {
+                    span.style.color = 'var(--danger, #ff6584)'; // Red: > 2 days
+                }
+            });
         });
 
         // ── Announcement Edit/Cancel ──────────────────────────────────────

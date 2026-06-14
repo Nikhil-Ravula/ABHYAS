@@ -21,4 +21,6 @@ urlpatterns = [
     path('edit-paper/<int:paper_id>/', views.edit_paper, name='edit_paper'),
     path('edit-iq/', views.edit_iq, name='edit_iq'),
     path('download-search-history-pdf/', views.download_search_history_pdf, name='download_search_history_pdf'),
+    path('download-error-log/', views.download_error_log, name='download_error_log'),
+    path('download-paper-stats-pdf/', views.download_paper_stats_pdf, name='download_paper_stats_pdf'),
 ]
