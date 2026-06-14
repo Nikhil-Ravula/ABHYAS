@@ -881,8 +881,8 @@ def admin_log_view(request):
     tickets = Ticket.objects.all().order_by('-created_at').prefetch_related('replies', 'replies__author', 'student')
     
     all_papers = Paper.objects.all().annotate(
-        total_views=Count('views'),
-        total_downloads=Count('downloads')
+        total_views=Count('views', distinct=True),
+        total_downloads=Count('downloads', distinct=True)
     ).order_by('-uploaded_at')
 
     iq_subjects = ImportantQuestionEntry.objects.values('subject').annotate(
@@ -1647,9 +1647,9 @@ def download_paper_stats_pdf(request):
     pyq_stats = Paper.objects.values(
         subject_lower=Lower('subject')
     ).annotate(
-        total_papers=Count('id'),
-        total_views=Count('views'),
-        total_downloads=Count('downloads'),
+        total_papers=Count('id', distinct=True),
+        total_views=Count('views', distinct=True),
+        total_downloads=Count('downloads', distinct=True),
     ).order_by('subject_lower')
 
     # Get the original subject name (first occurrence)
