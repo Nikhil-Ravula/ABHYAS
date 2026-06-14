@@ -1751,24 +1751,243 @@ def download_paper_stats_pdf(request):
 
 @login_required
 def download_error_log(request):
-    """Download the django.log file as a text file. Admin-only."""
+    """Download the system error log file formatted as a beautiful PDF. Admin-only."""
     if not request.user.is_superuser:
         return redirect('dashboard')
 
-    log_path = os.path.join(settings.BASE_DIR, 'logs', 'django.log')
+    # Dynamically locate PythonAnywhere error log
+    log_path = None
+    username = os.environ.get('USER', 'abhyas')
+    possible_paths = [
+        f"/var/log/{username}.pythonanywhere.com.error.log",
+        f"/var/log/{username}.pythonanywhere.com.server.log",
+    ]
+    
+    try:
+        import glob
+        possible_paths.extend(glob.glob("/var/log/*.error.log"))
+    except Exception:
+        pass
+
+    for path in possible_paths:
+        if path and os.path.exists(path):
+            log_path = path
+            break
+
+    is_python_anywhere_log = (log_path is not None)
+
+    if not log_path:
+        # Fallback to local logs/django.log
+        log_path = os.path.join(settings.BASE_DIR, 'logs', 'django.log')
 
     if not os.path.exists(log_path) or os.path.getsize(log_path) == 0:
         messages.error(request, "No error log entries found.")
         return redirect('admin_log')
 
     import datetime as dt
+    import re
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+    from reportlab.lib import colors
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import letter
+
     ist_tz = dt.timezone(dt.timedelta(hours=5, minutes=30))
-    now = timezone.now().astimezone(ist_tz)
-    filename = f"abhyas_errorlog_{now.strftime('%d-%m-%Y_%H-%M')}.log"
+    now = timezone.now() # Current UTC time
 
+    # Days filter parameter
+    days_str = request.GET.get('days', 'all')
+    cutoff_date = None
+    if days_str.isdigit():
+        days_limit = int(days_str)
+        cutoff_date = now - dt.timedelta(days=days_limit)
+        filename = f"abhyas_errorlog_{days_str}days_{now.astimezone(ist_tz).strftime('%d-%m-%Y_%H-%M')}.pdf"
+    else:
+        filename = f"abhyas_errorlog_all_{now.astimezone(ist_tz).strftime('%d-%m-%Y_%H-%M')}.pdf"
+
+    # Read log entries
     with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
-        content = f.read()
+        raw_lines = f.readlines()
 
-    response = HttpResponse(content, content_type='text/plain; charset=utf-8')
+    # Parse and group log entries
+    # Regex to match YYYY-MM-DD HH:MM:SS
+    date_pattern = re.compile(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})')
+
+    parsed_logs = []
+    current_entry = None
+    keep_current = True
+
+    for line in raw_lines:
+        match = date_pattern.search(line)
+        if match:
+            # New log entry starts
+            if current_entry and keep_current:
+                parsed_logs.append(current_entry)
+            
+            current_entry = line
+            keep_current = True
+            
+            if cutoff_date:
+                try:
+                    log_time_str = match.group(1)
+                    log_time = dt.datetime.strptime(log_time_str, '%Y-%m-%d %H:%M:%S')
+                    if is_python_anywhere_log:
+                        # PythonAnywhere system error.log is written in UTC
+                        log_time = log_time.replace(tzinfo=dt.timezone.utc)
+                    else:
+                        # local django.log is in IST
+                        log_time = log_time.replace(tzinfo=ist_tz)
+                        
+                    if log_time < cutoff_date:
+                        keep_current = False
+                except Exception:
+                    pass
+        else:
+            # Continuation line (like tracebacks)
+            if current_entry:
+                current_entry += '\n' + line
+            else:
+                current_entry = line
+
+    # Append the last entry
+    if current_entry and keep_current:
+        parsed_logs.append(current_entry)
+
+    # ── Build the PDF ─────────────────────────────────────────────────────
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        leftMargin=40, rightMargin=40, topMargin=50, bottomMargin=50
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Custom styles matching our dark theme
+    title_style = ParagraphStyle(
+        'LogTitle', parent=styles['Title'],
+        fontName=_PDF_FONT_BOLD, fontSize=16, spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        'LogSubtitle', parent=styles['Normal'],
+        fontName=_PDF_FONT, fontSize=9, textColor=colors.grey,
+        alignment=TA_CENTER, spaceAfter=20,
+    )
+    
+    # Monospace styling for log lines
+    log_style = ParagraphStyle(
+        'LogLine',
+        fontName='Courier',
+        fontSize=7,
+        leading=9,
+        textColor=HexColor('#333333'),
+        spaceAfter=4,
+    )
+    
+    # Monospace bold styling for error lines (Thick black)
+    err_log_style = ParagraphStyle(
+        'ErrLogLine',
+        parent=log_style,
+        fontName='Courier-Bold',
+        textColor=HexColor('#000000'),
+    )
+    
+    # Monospace bold styling for warning lines (Thick dark gold)
+    warn_log_style = ParagraphStyle(
+        'WarnLogLine',
+        parent=log_style,
+        fontName='Courier-Bold',
+        textColor=HexColor('#c57f00'),
+    )
+
+    story.append(Paragraph('ABHYAS — System Diagnostics &amp; Error Report', title_style))
+    filter_label = f"Last {days_str} days" if days_str != 'all' else "All logs"
+    story.append(Paragraph(
+        f"Generated on {now.astimezone(ist_tz).strftime('%d %b %Y at %I:%M %p')} ({filter_label})",
+        subtitle_style
+    ))
+    story.append(HRFlowable(
+        width='100%', thickness=1, color=colors.grey,
+        spaceAfter=14, spaceBefore=4
+    ))
+
+    if not parsed_logs:
+        empty_style = ParagraphStyle(
+            'EmptyStyle', parent=styles['Normal'],
+            fontName=_PDF_FONT, fontSize=10, textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        story.append(Spacer(1, 20))
+        story.append(Paragraph("No log entries match the selected date filter.", empty_style))
+    else:
+        from django.utils.html import escape
+        # To prevent oversized PDFs, limit to the last 500 entries
+        for entry in parsed_logs[-500:]:
+            # Clean up spacing/carriage returns
+            cleaned = entry.strip('\r\n')
+            
+            # If it's a PythonAnywhere log (UTC), convert the timestamp in the message to IST
+            if is_python_anywhere_log:
+                match = date_pattern.search(cleaned)
+                if match:
+                    try:
+                        utc_time_str = match.group(1)
+                        utc_time = dt.datetime.strptime(utc_time_str, '%Y-%m-%d %H:%M:%S')
+                        utc_time = utc_time.replace(tzinfo=dt.timezone.utc)
+                        ist_time = utc_time.astimezone(ist_tz)
+                        ist_time_str = ist_time.strftime('%Y-%m-%d %H:%M:%S')
+                        cleaned = cleaned.replace(utc_time_str, ist_time_str)
+                    except Exception:
+                        pass
+                        
+            escaped = escape(cleaned).replace('\n', '<br/>').replace(' ', '&nbsp;')
+            
+            # Color-code lines based on severity
+            cleaned_upper = cleaned.upper()
+            is_error = any(k in cleaned_upper for k in ['ERROR', 'EXCEPTION', 'TRACEBACK', 'OSERROR', 'FAILED LOGIN', 'REGISTRATION ATTEMPT'])
+            is_warning = any(k in cleaned_upper for k in ['WARNING', 'WARN', 'NOT FOUND', 'INVALIDATED'])
+            
+            if is_error:
+                entry_style = err_log_style
+                # Wrap specific error targets in bold red font tag
+                red_targets = [
+                    'django.core.exceptions.DisallowedHost:',
+                    'ValueError:',
+                    'Traceback (most recent call last):',
+                    'OSError:',
+                    'AttributeError:'
+                ]
+                for target in red_targets:
+                    escaped_target = escape(target).replace(' ', '&nbsp;')
+                    if escaped_target in escaped:
+                        replacement = f'<font color="#d32f2f"><b>{escaped_target}</b></font>'
+                        escaped = escaped.replace(escaped_target, replacement)
+            elif is_warning:
+                entry_style = warn_log_style
+            else:
+                entry_style = log_style
+                
+            story.append(Paragraph(escaped, entry_style))
+            story.append(Spacer(1, 2))
+
+    # Page numbering / border canvas callback
+    def draw_decorations(canvas, document):
+        canvas.saveState()
+        # Page border
+        canvas.setStrokeColor(HexColor('#3a3a50'))
+        canvas.setLineWidth(1)
+        canvas.rect(30, 30, letter[0] - 60, letter[1] - 60)
+        
+        # Footer
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.grey)
+        canvas.drawString(45, 40, "Confidential — For Administrator Use Only")
+        canvas.drawRightString(letter[0] - 45, 40, f"Page {document.page}")
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=draw_decorations, onLaterPages=draw_decorations)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response

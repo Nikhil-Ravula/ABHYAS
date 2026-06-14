@@ -585,9 +585,20 @@
                         <h3 class="card-title"><i class="fas fa-user-group" style="color:var(--secondary)"></i> All Registered Users</h3>
                         <span style="font-size:0.85rem; color:var(--text-muted);">{{ all_users.count }} student{{ all_users.count|pluralize }}</span>
                     </div>
-                    <!-- Search bar -->
-                    <div style="padding: 16px 24px 0;">
-                        <input type="text" id="user-search" class="form-control" placeholder="🔍  Search by username or email..." oninput="filterUsers(this.value)" style="max-width:400px;">
+                    <!-- Search & Filter bar -->
+                    <div style="padding: 16px 24px 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="user-search" class="form-control" placeholder="🔍  Search by username or email..." oninput="filterUsers()" style="max-width:320px; margin-bottom: 0;">
+                        <select id="user-last-seen-filter" class="form-control" onchange="filterUsers()" style="max-width:220px; background-color: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer;">
+                            <option value="all">All Last Seen</option>
+                            <option value="1">Logged in &lt; 1 day ago</option>
+                            <option value="2">Logged in &lt; 2 days ago</option>
+                            <option value="3">Logged in &lt; 3 days ago</option>
+                            <option value="4">Logged in &lt; 4 days ago</option>
+                            <option value="5">Logged in &lt; 5 days ago</option>
+                            <option value="6">Logged in &lt; 6 days ago</option>
+                            <option value="7">Logged in &lt; 7 days ago</option>
+                            <option value="never">Never logged in</option>
+                        </select>
                     </div>
                     <div class="table-wrapper">
                         <table class="data-table" id="all-users-table">
@@ -1230,12 +1241,26 @@
                             <i class="fas fa-bug"></i>
                         </div>
                         <h3 style="font-family:var(--font-heading); margin-bottom:8px;">Error Log</h3>
-                        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:24px; line-height:1.6;">
-                            Download the server error log (django.log) — includes failed logins, exceptions, and request errors.
+                        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:16px; line-height:1.6;">
+                            Download system diagnostics and error reports from django.log as a PDF document.
                         </p>
-                        <a href="{% url 'download_error_log' %}" class="btn btn-primary"
+                        <div style="margin-bottom: 24px; display: inline-flex; align-items: center; gap: 8px; justify-content: center;">
+                            <label for="log-days-filter" style="font-size:0.82rem; color:var(--text-muted);">Filter:</label>
+                            <select id="log-days-filter" class="form-control" style="width:auto; font-size:0.82rem; padding:6px 12px; height:auto; background-color: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+                                <option value="all">All Logs</option>
+                                <option value="1">Last 24 Hours</option>
+                                <option value="2">Last 2 Days</option>
+                                <option value="3">Last 3 Days</option>
+                                <option value="4">Last 4 Days</option>
+                                <option value="5">Last 5 Days</option>
+                                <option value="6">Last 6 Days</option>
+                                <option value="7">Last 7 Days</option>
+                            </select>
+                        </div>
+                        <br>
+                        <a id="btn-download-error-log" href="{% url 'download_error_log' %}" class="btn btn-primary"
                             style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; padding:12px 28px; background:linear-gradient(135deg, var(--accent), #e0457b);">
-                            <i class="fas fa-download"></i> Download Error Log
+                            <i class="fas fa-download"></i> Download Error PDF
                         </a>
                     </div>
 
@@ -1325,6 +1350,21 @@
                     span.style.color = 'var(--danger, #ff6584)'; // Red: > 2 days
                 }
             });
+
+            // Update Error Log PDF download href with selected filter
+            const selectEl = document.getElementById('log-days-filter');
+            const btnEl = document.getElementById('btn-download-error-log');
+            if (selectEl && btnEl) {
+                const baseHref = btnEl.getAttribute('href');
+                selectEl.addEventListener('change', function() {
+                    const val = this.value;
+                    if (val === 'all') {
+                        btnEl.setAttribute('href', baseHref);
+                    } else {
+                        btnEl.setAttribute('href', baseHref + '?days=' + val);
+                    }
+                });
+            }
         });
 
         // ── Announcement Edit/Cancel ──────────────────────────────────────
@@ -1582,12 +1622,50 @@
     });
 
     // ── All Users Search Filter ─────────────────────────────────────────
-    function filterUsers(query) {
-        const q = query.toLowerCase();
+    function filterUsers() {
+        const query = document.getElementById('user-search').value.toLowerCase();
+        const daysFilter = document.getElementById('user-last-seen-filter').value;
         const rows = document.querySelectorAll('#all-users-tbody tr');
+        
+        const now = new Date();
+        const ONE_DAY = 24 * 60 * 60 * 1000;
+
         rows.forEach(row => {
-            const text = row.innerText.toLowerCase();
-            row.style.display = text.includes(q) ? '' : 'none';
+            // Check text match
+            const username = row.cells[1]?.innerText.toLowerCase() || '';
+            const email = row.cells[2]?.innerText.toLowerCase() || '';
+            const textMatch = username.includes(query) || email.includes(query);
+
+            // Check days filter match
+            let timeMatch = true;
+            const indicator = row.querySelector('.last-seen-indicator');
+            
+            if (daysFilter !== 'all') {
+                if (!indicator) {
+                    timeMatch = (daysFilter === 'never');
+                } else {
+                    const timestampStr = indicator.dataset.timestamp;
+                    if (timestampStr) {
+                        const ts = new Date(timestampStr);
+                        const diffDays = (now - ts) / ONE_DAY;
+                        
+                        if (daysFilter === 'never') {
+                            timeMatch = false;
+                        } else {
+                            const maxDays = parseInt(daysFilter, 10);
+                            timeMatch = (diffDays < maxDays);
+                        }
+                    } else {
+                        timeMatch = false;
+                    }
+                }
+            }
+
+            if (textMatch && timeMatch) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         });
     }
 </script>
