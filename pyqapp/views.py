@@ -266,6 +266,10 @@ def aacharya_oidc_callback(request):
     email = userinfo.get('email', '')
     aacharya_sub = str(userinfo.get('sub', ''))
     name = userinfo.get('name', userinfo.get('preferred_username', ''))
+    preferred_username = userinfo.get('preferred_username', '')
+    # If the name is just the roll number (matches preferred_username), use email prefix instead
+    if name == preferred_username:
+        name = email.split('@')[0] if '@' in email else name
     role = userinfo.get('role', 'unknown')
 
     if not email:
