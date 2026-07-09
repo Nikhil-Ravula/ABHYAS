@@ -308,6 +308,45 @@ def aacharya_oidc_callback(request):
     return redirect('dashboard')
 
 
+@require_http_methods(["GET"])
+def vitharn_login(request):
+    """Log in via Vitharn JWT token."""
+    token = request.GET.get('token')
+    if not token:
+        return redirect('login')
+
+    # Fetch user data from Vitharn API using the token
+    # In dev, the internal docker network URL is usually http://vitharn_api:8000
+    vitharn_api_url = os.environ.get('VITHARN_API_URL', 'http://vitharn_api:8000')
+    try:
+        response = http_requests.get(
+            f"{vitharn_api_url}/api/auth/me/",
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=5
+        )
+        response.raise_for_status()
+        user_data = response.json()
+        
+        email = user_data.get('email')
+        if not email:
+            messages.error(request, "Vitharn token missing email.")
+            return redirect('login')
+            
+        username = email.split('@')[0]
+        user, created = User.objects.get_or_create(email=email, defaults={'username': username})
+        if created:
+            user.set_unusable_password()
+            user.first_name = user_data.get('full_name', '')
+            user.save()
+            
+        # Log the user in
+        user.backend = 'django.contrib.auth.backends.ModelBackend'
+        login(request, user)
+        return redirect('dashboard')
+    except Exception as e:
+        logger.error(f"Vitharn login error: {e}")
+        messages.error(request, "Failed to authenticate with Vitharn.")
+        return redirect('login')
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     return redirect('oidc_login')
