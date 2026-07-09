@@ -388,11 +388,6 @@
             const regulation = document.getElementById('filterRegulation').value;
             const resultsArea = document.getElementById('resultsArea');
 
-            if (!hashtag && !year && !branch && !regulation) {
-                const initial = document.getElementById('initialState');
-                if (initial && resultsArea.contains(initial)) return;
-            }
-
             resultsArea.innerHTML = '<div class="spinner"></div>';
 
             try {
@@ -525,6 +520,10 @@
             div.textContent = str;
             return div.innerHTML;
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            searchPapers();
+        });
     </script>
 </body>
 
