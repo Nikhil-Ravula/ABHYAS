@@ -6,15 +6,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - ABHYAS</title>
+    <link rel="icon" href="/vitharn/favicon.ico">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
+    <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
+    {% endif %}
 </head>
 
 <body>
 
     <nav class="navbar">
         <div class="container">
-            <a href="/" class="nav-brand">
+            <a href="/" class="nav-brand" data-umami-event="nav.abhyas">
                 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
                 <span>ABHYAS</span>
             </a>
@@ -58,16 +62,16 @@
                         <label>Password</label>
                         <input type="password" name="password" class="form-control" required>
                     </div>
-                    <button type="submit" class="btn btn-secondary" style="width: 100%; margin-top: 1rem;">
+                    <button type="submit" class="btn btn-secondary" style="width: 100%; margin-top: 1rem;" data-umami-event="register.submit">
                         Register
                     </button>
                 </form>
                 <p style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary);">
-                    Already have an account? <a href="{% url 'login' %}" style="color: var(--primary-light);">Login
+                    Already have an account? <a href="{% url 'login' %}" style="color: var(--primary-light);" data-umami-event="register.login">Login
                         here</a>
                 </p>
                 <div style="text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.85rem; color: var(--text-secondary);">
-                    Having issues? We're here to help on <a href="https://t.me/unknown_bot_5" target="_blank" rel="noopener noreferrer" style="color: #0088cc; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fab fa-telegram"></i> Telegram</a>
+                    Having issues? We're here to help on <a href="https://t.me/unknown_bot_5" target="_blank" rel="noopener noreferrer" data-umami-event="register.telegram" style="color: #0088cc; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fab fa-telegram"></i> Telegram</a>
                 </div>
             </div>
         </div>

@@ -6,8 +6,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - ABHYAS</title>
+    <link rel="icon" href="/vitharn/favicon.ico">
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
+    <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
+    {% endif %}
     <style>
         /* ── Profile Hero ─────────────────────────────────────────────── */
         .profile-hero {
@@ -222,7 +226,7 @@
 
     <nav class="navbar">
         <div class="container">
-            <a href="/" class="nav-brand">
+            <a href="/" class="nav-brand" data-umami-event="nav.abhyas">
                 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
                 <span>ABHYAS</span>
             </a>
@@ -231,8 +235,8 @@
                 <span></span><span></span><span></span>
             </div>
             <ul class="nav-links" id="navLinks">
-                <li><a href="{% url 'dashboard' %}"><i class="fas fa-home"></i> Dashboard</a></li>
-                <li><a href="{% url 'logout' %}" style="color: var(--danger);"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                <li><a href="{% url 'dashboard' %}" data-umami-event="nav.dashboard"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="{% url 'logout' %}" style="color: var(--danger);" data-umami-event="nav.logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             </ul>
         </div>
     </nav>
@@ -423,12 +427,12 @@
                     <div style="margin-top: 1.5rem;">
                         <div class="logout-grid">
                             <a href="{% url 'logout' %}" class="btn btn-danger"
-                                style="text-decoration:none; text-align:center; padding:10px;">
+                                style="text-decoration:none; text-align:center; padding:10px;" data-umami-event="profile.logout">
                                 <i class="fas fa-sign-out-alt"></i> Logout
                             </a>
                             <a href="{% url 'logout_all_devices' %}" class="btn"
                                 style="text-decoration:none; text-align:center; padding:10px; background:transparent; border:1px solid var(--danger); color:var(--danger);"
-                                onclick="return confirm('This will log you out from ALL devices. Continue?');">
+                                onclick="return confirm('This will log you out from ALL devices. Continue?');" data-umami-event="profile.logout_all">
                                 <i class="fas fa-power-off"></i> All Devices
                             </a>
                         </div>

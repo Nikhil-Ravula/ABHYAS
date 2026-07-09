@@ -66,6 +66,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'pyqapp.context_processors.umami',
             ],
         },
     },
@@ -111,6 +112,10 @@ AACHARYA_OIDC['TOKEN_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/token/"
 AACHARYA_OIDC['USERINFO_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/userinfo/"
 AACHARYA_OIDC['REDIRECT_URI'] = 'https://rubix.tail2d2f35.ts.net/vitharn/abhyas/app/auth/aacharya/callback/'
 STATICFILES_DIRS = []
+
+# Umami Analytics
+UMAMI_SRC = os.environ.get('UMAMI_SRC', '')
+UMAMI_WEBSITE_ID = os.environ.get('UMAMI_WEBSITE_ID', '')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 

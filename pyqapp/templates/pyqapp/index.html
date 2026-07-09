@@ -10,8 +10,12 @@
     <!-- <title>PYQ Portal - Previous Year Questions</title> -->
     <title>Abhyas</title>
     <!-- Django Static Mapping -->
+    <link rel="icon" href="/vitharn/favicon.ico">
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
+    <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
+    {% endif %}
 </head>
 
 <body>
@@ -19,7 +23,7 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="container">
-            <a href="{% url 'index' %}" class="nav-brand">
+            <a href="{% url 'index' %}" class="nav-brand" data-umami-event="nav.abhyas">
                 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
                 <span>ABHYAS</span>
             </a>
@@ -29,16 +33,16 @@
             <ul class="nav-links" id="navLinks">
                 {% if user.is_authenticated %}
                 {% if user.profile.role == 'admin' %}
-                <li><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+                <li><a href="{% url 'admin_dashboard' %}" data-umami-event="nav.dashboard">Dashboard</a></li>
                 {% elif user.profile.role == 'staff' %}
-                <li><a href="{% url 'staff_dashboard' %}">Dashboard</a></li>
+                <li><a href="{% url 'staff_dashboard' %}" data-umami-event="nav.dashboard">Dashboard</a></li>
                 {% else %}
-                <li><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+                <li><a href="{% url 'student_dashboard' %}" data-umami-event="nav.dashboard">Dashboard</a></li>
                 {% endif %}
-                <li><a href="{% url 'logout' %}">Logout</a></li>
+                <li><a href="{% url 'logout' %}" data-umami-event="nav.logout">Logout</a></li>
                 {% else %}
-                <li><a href="{% url 'login' %}">Login</a></li>
-                <li><a href="{% url 'register' %}" class="btn btn-primary btn-sm">Register</a></li>
+                <li><a href="{% url 'login' %}" data-umami-event="nav.login">Login</a></li>
+                <li><a href="{% url 'register' %}" class="btn btn-primary btn-sm" data-umami-event="nav.register">Register</a></li>
                 {% endif %}
             </ul>
         </div>
@@ -58,14 +62,14 @@
             </p>
             <div class="hero-btns">
                 {% if user.is_authenticated %}
-                <a href="{% url 'student_dashboard' %}" class="btn btn-primary btn-lg">
+                <a href="{% url 'student_dashboard' %}" class="btn btn-primary btn-lg" data-umami-event="home.dashboard">
                     <i class="fas fa-th-large"></i> Go to Dashboard
                 </a>
                 {% else %}
-                <a href="{% url 'login' %}" class="btn btn-primary btn-lg">
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg" data-umami-event="home.login">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </a>
-                <a href="{% url 'register' %}" class="btn btn-secondary btn-lg">
+                <a href="{% url 'register' %}" class="btn btn-secondary btn-lg" data-umami-event="home.register">
                     <i class="fas fa-user-plus"></i> Register
                 </a>
                 {% endif %}
@@ -73,7 +77,7 @@
             <div class="hero-social"
                 style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 2rem; flex-wrap: wrap;">
                 <!-- Telegram -->
-                <a href="https://t.me/unknown_bot_5" target="_blank" rel="noopener noreferrer" id="telegram-link" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem;
+                <a href="https://t.me/unknown_bot_5" target="_blank" rel="noopener noreferrer" id="telegram-link" data-umami-event="social.telegram" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem;
                           background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12);
                           border-radius: 50px; text-decoration: none; color: inherit;
                           transition: transform .25s, box-shadow .25s, border-color .25s; backdrop-filter: blur(8px);"
@@ -88,7 +92,7 @@
 
                 <!-- WhatsApp Channel -->
                 <a href="https://whatsapp.com/channel/0029Vb8pz0IGehESBFFqc23o" target="_blank"
-                    rel="noopener noreferrer" id="whatsapp-link" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem;
+                    rel="noopener noreferrer" id="whatsapp-link" data-umami-event="social.whatsapp" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem;
                           background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12);
                           border-radius: 50px; text-decoration: none; color: inherit;
                           transition: transform .25s, box-shadow .25s, border-color .25s; backdrop-filter: blur(8px);"

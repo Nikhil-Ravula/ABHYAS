@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page Not Found - 404</title>
+    <link rel="icon" href="/vitharn/favicon.ico">
+    {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
+    <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
+    {% endif %}
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -55,7 +59,7 @@
         <h1>404</h1>
         <h2>Page Not Found</h2>
         <p>Sorry, the page you're looking for doesn't exist or has been moved.</p>
-        <a href="/">Go Back Home</a>
+        <a href="/" data-umami-event="error.404.home">Go Back Home</a>
     </div>
 </body>
 </html>

@@ -11,6 +11,8 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - DEBUG=${DEBUG:-1}
       - ABHYAS_OIDC_CLIENT_SECRET=abhyas-local-dev-secret
+      - UMAMI_SRC=${UMAMI_SRC:-https://umami.novamymentor.cloud}
+      - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-a279ca2a-3a5c-4cbc-95af-e962cc90cdcc}
     ports:
       - "8003:8000"
     volumes:
