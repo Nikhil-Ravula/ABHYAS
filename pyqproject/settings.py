@@ -110,7 +110,7 @@ AACHARYA_OIDC = {
 AACHARYA_OIDC['AUTHORIZE_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/authorize/"
 AACHARYA_OIDC['TOKEN_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/token/"
 AACHARYA_OIDC['USERINFO_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/userinfo/"
-AACHARYA_OIDC['REDIRECT_URI'] = 'https://rubix.tail2d2f35.ts.net/vitharn/abhyas/app/auth/aacharya/callback/'
+AACHARYA_OIDC['REDIRECT_URI'] = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com') + os.environ.get('FORCE_SCRIPT_NAME', '/abhyas/app') + '/auth/aacharya/callback/'
 STATICFILES_DIRS = []
 
 # Umami Analytics
