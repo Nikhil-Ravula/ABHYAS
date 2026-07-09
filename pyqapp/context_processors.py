@@ -4,6 +4,7 @@ def umami(request):
     config = {
         'UMAMI_SRC': getattr(settings, 'UMAMI_SRC', ''),
         'UMAMI_WEBSITE_ID': getattr(settings, 'UMAMI_WEBSITE_ID', ''),
+        'FAVICON_URL': getattr(settings, 'FAVICON_URL', '/favicon.ico'),
     }
     if settings.DEBUG:
         config['UMAMI_SRC'] = ''

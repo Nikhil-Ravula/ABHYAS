@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import posixpath
 
 load_dotenv()
 
@@ -96,9 +97,9 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-FORCE_SCRIPT_NAME = '/vitharn/abhyas/app'
-
-STATIC_URL = '/vitharn/abhyas/static/'
+FORCE_SCRIPT_NAME = os.environ.get('FORCE_SCRIPT_NAME', '/abhyas/app')
+_script_parent = posixpath.dirname(FORCE_SCRIPT_NAME.rstrip('/'))
+STATIC_URL = os.environ.get('STATIC_URL', f'{_script_parent}/static/')
 
 # Aacharya OIDC SSO
 AACHARYA_OIDC = {
@@ -110,16 +111,19 @@ AACHARYA_OIDC = {
 AACHARYA_OIDC['AUTHORIZE_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/authorize/"
 AACHARYA_OIDC['TOKEN_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/token/"
 AACHARYA_OIDC['USERINFO_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/userinfo/"
-AACHARYA_OIDC['REDIRECT_URI'] = 'https://rubix.tail2d2f35.ts.net/vitharn/abhyas/app/auth/aacharya/callback/'
+ABHYAS_PUBLIC_URL = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com')
+AACHARYA_OIDC['REDIRECT_URI'] = f"{ABHYAS_PUBLIC_URL}{FORCE_SCRIPT_NAME}/auth/aacharya/callback/"
 STATICFILES_DIRS = []
 
 # Umami Analytics
 UMAMI_SRC = os.environ.get('UMAMI_SRC', '')
 UMAMI_WEBSITE_ID = os.environ.get('UMAMI_WEBSITE_ID', '')
+
+FAVICON_URL = os.environ.get('FAVICON_URL', f'{_script_parent}/static/favicon.ico')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-MEDIA_URL = '/vitharn/abhyas/media/'
+MEDIA_URL = os.environ.get('MEDIA_URL', f'{_script_parent}/media/')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Nidhi MinIO Storage via SDK

@@ -13,6 +13,9 @@ services:
       - ABHYAS_OIDC_CLIENT_SECRET=abhyas-local-dev-secret
       - UMAMI_SRC=${UMAMI_SRC:-https://umami.novamymentor.cloud}
       - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-a279ca2a-3a5c-4cbc-95af-e962cc90cdcc}
+      - FORCE_SCRIPT_NAME=/vitharn/abhyas/app
+      - FAVICON_URL=/vitharn/favicon.ico
+      - ABHYAS_PUBLIC_URL=https://rubix.tail2d2f35.ts.net
     ports:
       - "8003:8000"
     volumes:
