@@ -19,7 +19,7 @@ class Paper(models.Model):
     regulation = models.CharField(max_length=5, choices=REGULATION_CHOICES, default='R22')
     # Storing multiple branches as a comma-separated string to match your PHP logic
     branch = models.CharField(max_length=100) 
-    hashtags = models.CharField(max_length=255, blank=True, help_text="e.g. java, oopj")
+    hashtags = models.CharField(max_length=1000, blank=True, help_text="e.g. java, oopj")
     
     # File handling
     file = models.FileField(upload_to='papers/')

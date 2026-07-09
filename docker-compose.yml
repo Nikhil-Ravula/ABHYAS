@@ -1,0 +1,27 @@
+services:
+  abhyas_api:
+    build: .
+    image: rubixitdev/abhyas-api:latest
+    restart: always
+    environment:
+      - DOCKER_API_VERSION=1.40
+      - NIDHI_DEV_SERVER_URL=http://nidhi-backend-1:8000
+      - NIDHI_APP_API_KEY=super_secret_app_api_key_123
+      - PROJECT_SLUG=abhyas
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DEBUG=${DEBUG:-1}
+      - ABHYAS_OIDC_CLIENT_SECRET=abhyas-local-dev-secret
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./pyqapp:/app/pyqapp
+      - ./pyqproject:/app/pyqproject
+      - ./nidhi-init.sh:/app/nidhi-init.sh
+      - ./scripts:/app/scripts
+    networks:
+      - default
+      - nidhi_default
+
+networks:
+  nidhi_default:
+    external: true

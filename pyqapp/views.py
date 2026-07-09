@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import os
+import secrets
 from datetime import datetime
 import unicodedata
 from django.shortcuts import render, redirect, get_object_or_404
@@ -29,6 +30,8 @@ from django.utils import timezone
 from django.core.cache import cache
 
 import requests as http_requests
+import urllib.parse
+import jwt as pyjwt
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.pagesizes import letter
@@ -122,10 +125,10 @@ def validate_uploaded_file(uploaded_file):
 
 def _get_paper_content(paper):
     """
-    Get file content for a paper from Cloudinary or local storage.
+    Get file content for a paper from remote storage (MinIO) or local disk.
     
-    Tries Cloudinary URL first. If the file doesn't exist there (old upload),
-    falls back to reading from local disk via MEDIA_ROOT.
+    Tries the file URL (presigned S3/MinIO URL) first via HTTP GET.
+    Falls back to reading from local disk via MEDIA_ROOT.
     
     Args:
         paper: Paper model instance
@@ -135,17 +138,15 @@ def _get_paper_content(paper):
     """
     file_url = paper.file.url
 
-    # Try Cloudinary first (all URLs are https://res.cloudinary.com/...)
     if file_url.startswith('http'):
         try:
-            cloudinary_response = http_requests.get(file_url, stream=True, timeout=10)
-            if cloudinary_response.status_code == 200:
-                return cloudinary_response.content
+            resp = http_requests.get(file_url, stream=True, timeout=30)
+            if resp.status_code == 200:
+                return resp.content
         except http_requests.RequestException as e:
-            logger.error(f"Error fetching file from Cloudinary: {e}")
+            logger.error(f"Error fetching file from storage: {e}")
             return None
 
-    # Fallback: read from local disk (old files uploaded before Cloudinary)
     local_path = os.path.join(settings.MEDIA_ROOT, paper.file.name)
     if os.path.exists(local_path):
         try:
@@ -199,6 +200,108 @@ def index(request):
             return redirect('staff_dashboard')
         return redirect('dashboard')
     return render(request, 'pyqapp/index.html')
+
+
+# ── Aacharya OIDC SSO ────────────────────────────────────────────────────────
+
+def oidc_login(request):
+    """Redirect user to Aacharya's OIDC authorize endpoint."""
+    oidc = settings.AACHARYA_OIDC
+    params = {
+        'client_id': oidc['CLIENT_ID'],
+        'response_type': 'code',
+        'redirect_uri': oidc['REDIRECT_URI'],
+        'scope': oidc['SCOPE'],
+    }
+    url = f"{oidc['AUTHORIZE_URL']}?{urllib.parse.urlencode(params)}"
+    return redirect(url)
+
+
+@require_http_methods(["GET"])
+def aacharya_oidc_callback(request):
+    """Handle OIDC callback from Aacharya: exchange code, fetch user, log in."""
+    code = request.GET.get('code')
+    error = request.GET.get('error')
+    if error or not code:
+        messages.error(request, f"Aacharya login failed: {error or 'No code received'}")
+        return redirect('login')
+
+    oidc = settings.AACHARYA_OIDC
+
+    # Exchange code for token
+    token_data = {
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': oidc['REDIRECT_URI'],
+        'client_id': oidc['CLIENT_ID'],
+        'client_secret': oidc['CLIENT_SECRET'],
+    }
+    try:
+        token_resp = http_requests.post(oidc['TOKEN_URL'], data=token_data, timeout=10)
+        token_resp.raise_for_status()
+        token_json = token_resp.json()
+        access_token = token_json.get('access_token')
+        if not access_token:
+            messages.error(request, "Failed to get access token from Aacharya.")
+            return redirect('login')
+    except Exception as e:
+        logger.error(f"Aacharya OIDC token exchange failed: {e}")
+        messages.error(request, "Failed to authenticate with Aacharya.")
+        return redirect('login')
+
+    # Fetch user info
+    try:
+        userinfo_resp = http_requests.get(
+            oidc['USERINFO_URL'],
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=10
+        )
+        userinfo_resp.raise_for_status()
+        userinfo = userinfo_resp.json()
+    except Exception as e:
+        logger.error(f"Aacharya OIDC userinfo failed: {e}")
+        messages.error(request, "Failed to fetch user info from Aacharya.")
+        return redirect('login')
+
+    email = userinfo.get('email', '')
+    aacharya_sub = str(userinfo.get('sub', ''))
+    name = userinfo.get('name', userinfo.get('preferred_username', ''))
+    role = userinfo.get('role', 'unknown')
+
+    if not email:
+        messages.error(request, "Aacharya account has no email address.")
+        return redirect('login')
+
+    # Find or create local user
+    user = User.objects.filter(email__iexact=email).first()
+    if not user:
+        username = email.split('@')[0][:150]
+        base_username = username
+        suffix = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{suffix}"
+            suffix += 1
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=secrets.token_urlsafe(32),
+        )
+        user.first_name = name.split()[0] if name else ''
+        if len(name.split()) > 1:
+            user.last_name = ' '.join(name.split()[1:])
+        user.save()
+        logger.info(f"Created new user from Aacharya SSO: {email}")
+
+    # Log the user in
+    user.backend = 'django.contrib.auth.backends.ModelBackend'
+    login(request, user)
+    messages.success(request, f"Welcome back, {user.username}!")
+
+    if user.is_superuser:
+        return redirect('admin_log')
+    if user.is_staff:
+        return redirect('staff_dashboard')
+    return redirect('dashboard')
 
 
 @require_http_methods(["GET", "POST"])

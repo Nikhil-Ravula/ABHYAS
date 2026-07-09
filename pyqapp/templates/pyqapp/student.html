@@ -385,8 +385,8 @@
             const resultsArea = document.getElementById('resultsArea');
 
             if (!hashtag && !year && !branch && !regulation) {
-                resultsArea.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><h3>Search for Question Papers</h3><p>Enter hashtags or use filters to find papers.</p></div>`;
-                return;
+                const initial = document.getElementById('initialState');
+                if (initial && resultsArea.contains(initial)) return;
             }
 
             resultsArea.innerHTML = '<div class="spinner"></div>';
