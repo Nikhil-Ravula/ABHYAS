@@ -8,6 +8,8 @@ This module handles all request/response logic including:
 - Admin dashboard functionality
 """
 
+import base64
+import hashlib
 import io
 import json
 import logging
@@ -205,13 +207,26 @@ def index(request):
 # ── Aacharya OIDC SSO ────────────────────────────────────────────────────────
 
 def oidc_login(request):
-    """Redirect user to Aacharya's OIDC authorize endpoint."""
+    """Redirect user to Aacharya's OIDC authorize endpoint (PKCE + state)."""
     oidc = settings.AACHARYA_OIDC
+
+    # PKCE: generate verifier + S256 challenge (Aacharya requires code_challenge)
+    code_verifier = secrets.token_urlsafe(48)
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()
+    ).decode().rstrip('=')
+    state = secrets.token_urlsafe(24)
+    request.session['aacharya_code_verifier'] = code_verifier
+    request.session['aacharya_oauth_state'] = state
+
     params = {
         'client_id': oidc['CLIENT_ID'],
         'response_type': 'code',
         'redirect_uri': oidc['REDIRECT_URI'],
         'scope': oidc['SCOPE'],
+        'state': state,
+        'code_challenge': code_challenge,
+        'code_challenge_method': 'S256',
     }
     url = f"{oidc['AUTHORIZE_URL']}?{urllib.parse.urlencode(params)}"
     return redirect(url)
@@ -222,19 +237,25 @@ def aacharya_oidc_callback(request):
     """Handle OIDC callback from Aacharya: exchange code, fetch user, log in."""
     code = request.GET.get('code')
     error = request.GET.get('error')
-    if error or not code:
-        messages.error(request, f"Aacharya login failed: {error or 'No code received'}")
+    state = request.GET.get('state')
+
+    # CSRF / state validation
+    sess_state = request.session.pop('aacharya_oauth_state', None)
+    if error or not code or state != sess_state:
+        messages.error(request, f"Aacharya login failed: {error or 'Invalid state'}")
         return redirect('login')
 
     oidc = settings.AACHARYA_OIDC
+    code_verifier = request.session.pop('aacharya_code_verifier', '')
 
-    # Exchange code for token
+    # Exchange code for token (PKCE: include code_verifier)
     token_data = {
         'grant_type': 'authorization_code',
         'code': code,
         'redirect_uri': oidc['REDIRECT_URI'],
         'client_id': oidc['CLIENT_ID'],
         'client_secret': oidc['CLIENT_SECRET'],
+        'code_verifier': code_verifier,
     }
     try:
         token_resp = http_requests.post(oidc['TOKEN_URL'], data=token_data, timeout=10)

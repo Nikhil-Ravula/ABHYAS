@@ -81,7 +81,7 @@ fi
 
 echo "Starting application..."
 sleep 2
-python manage.py migrate --fake 2>/dev/null && echo "All migrations faked."
+python manage.py migrate 2>&1 | tail -5 && echo "Migrations applied."
 echo "Migrations complete, starting gunicorn..."
 
 cat << 'HEOF' > /tmp/nidhi_heartbeat.py
