@@ -12,6 +12,10 @@ RUN pip install gunicorn psycopg2-binary dj-database-url whitenoise django-stora
 
 COPY . /app/
 
+# SECRET_KEY is injected at runtime by Nidhi (nidhi-init.sh). A placeholder is
+# needed only so `collectstatic` can run at build time without crashing.
+ENV SECRET_KEY=docker-build-placeholder-not-used-at-runtime
+
 RUN python manage.py collectstatic --no-input
 
 EXPOSE 8000
