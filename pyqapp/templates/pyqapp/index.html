@@ -41,8 +41,7 @@
                 {% endif %}
                 <li><a href="{% url 'logout' %}" data-umami-event="nav.logout">Logout</a></li>
                 {% else %}
-                <li><a href="{% url 'login' %}" data-umami-event="nav.login">Login</a></li>
-                <li><a href="{% url 'register' %}" class="btn btn-primary btn-sm" data-umami-event="nav.register">Register</a></li>
+                <li><a href="{% url 'oidc_login' %}" class="btn btn-primary btn-sm" data-umami-event="nav.login">Enter Abhyas</a></li>
                 {% endif %}
             </ul>
         </div>
@@ -66,11 +65,8 @@
                     <i class="fas fa-th-large"></i> Go to Dashboard
                 </a>
                 {% else %}
-                <a href="{% url 'login' %}" class="btn btn-primary btn-lg" data-umami-event="home.login">
-                    <i class="fas fa-sign-in-alt"></i> Login
-                </a>
-                <a href="{% url 'register' %}" class="btn btn-secondary btn-lg" data-umami-event="home.register">
-                    <i class="fas fa-user-plus"></i> Register
+                <a href="{% url 'oidc_login' %}" class="btn btn-primary btn-lg" data-umami-event="home.login">
+                    <i class="fas fa-sign-in-alt"></i> Enter Abhyas
                 </a>
                 {% endif %}
             </div>
