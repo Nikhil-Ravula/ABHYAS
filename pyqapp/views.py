@@ -313,7 +313,7 @@ def vitharn_login(request):
     """Log in via Vitharn JWT token."""
     token = request.GET.get('token')
     if not token:
-        return redirect('login')
+        return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
 
     # Fetch user data from Vitharn API using the token
     # In dev, the internal docker network URL is usually http://vitharn_api:8000
