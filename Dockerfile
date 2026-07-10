@@ -16,7 +16,11 @@ COPY . /app/
 # needed only so `collectstatic` can run at build time without crashing.
 ENV SECRET_KEY=docker-build-placeholder-not-used-at-runtime
 
-RUN python manage.py collectstatic --no-input
+RUN DATABASE_URL=sqlite:///tmp/db.sqlite3 \
+    NIDHI_MINIO_URL=http://dummy \
+    NIDHI_MINIO_ACCESS_KEY=dummy \
+    NIDHI_MINIO_SECRET_KEY=dummy \
+    python manage.py collectstatic --no-input
 
 EXPOSE 8000
 
