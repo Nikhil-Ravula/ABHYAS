@@ -337,39 +337,39 @@ def vitharn_login(request):
             logger.warning("Vitharn JWT missing user_id in payload")
             return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
 
-        # Fetch user email from Vitharn API using the token
-        # (only needed if user doesn't exist yet in Abhyas DB)
-        vitharn_api_url = os.environ.get('VITHARN_API_URL', 'http://vitharn_api:8000')
-        try:
-            response = http_requests.get(
-                f"{vitharn_api_url}/api/auth/me/",
-                headers={
-                    'Authorization': f'Bearer {token}',
-                    'Host': 'vitharn.com',
-                    'X-Forwarded-Host': 'vitharn.com'
-                },
-                timeout=5
-            )
-            response.raise_for_status()
-            user_data = response.json()
-            email = user_data.get('email')
-            full_name = user_data.get('full_name', '')
-        except Exception as api_err:
-            logger.warning(f"Could not fetch user data from Vitharn API: {api_err}")
-            # Fallback: try to find user by Vitharn user_id stored in profile
-            # or use a placeholder email so we can still identify the user
-            email = None
-            full_name = ''
+        # Check if the new token format includes email and full_name directly
+        email = payload.get('email')
+        full_name = payload.get('full_name', '')
+
+        # Fallback to Vitharn API if email is missing (for older tokens)
+        if not email:
+            vitharn_api_url = os.environ.get('VITHARN_API_URL', 'http://vitharn_api:8000')
+            try:
+                response = http_requests.get(
+                    f"{vitharn_api_url}/api/auth/me/",
+                    headers={
+                        'Authorization': f'Bearer {token}',
+                        'Host': 'vitharn.com',
+                        'X-Forwarded-Host': 'vitharn.com'
+                    },
+                    timeout=5
+                )
+                response.raise_for_status()
+                user_data = response.json()
+                email = user_data.get('email')
+                full_name = user_data.get('full_name', '')
+            except Exception as api_err:
+                logger.warning(f"Could not fetch user data from Vitharn API: {api_err}")
+                messages.warning(request, "Vitharn token expired, using limited identity.")
 
         if not email:
             # Fallback: use vitharn user_id to create a stable synthetic identity.
-            # This happens when the JWT is expired so the API returns 401,
-            # but we already decoded the user_id locally — enough to identify the user.
             logger.warning(
                 "Using synthetic identity for Vitharn user_id=%s (API unavailable)", user_id
             )
             email = f"vitharn_{user_id}@vitharn.internal"
-            full_name = f"Vitharn User {user_id}"
+            if not full_name:
+                full_name = f"Vitharn User {user_id}"
 
         username = email.split('@')[0]
         user, created = User.objects.get_or_create(
