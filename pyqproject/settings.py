@@ -118,7 +118,7 @@ STATICFILES_DIRS = []
 UMAMI_SRC = os.environ.get('UMAMI_SRC', '')
 UMAMI_WEBSITE_ID = os.environ.get('UMAMI_WEBSITE_ID', '')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 MEDIA_URL = '/vitharn/abhyas/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -134,7 +134,7 @@ if 'DEFAULT_FILE_STORAGE' in locals():
             "BACKEND": locals()['DEFAULT_FILE_STORAGE'],
         },
         "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
         }
     }
 

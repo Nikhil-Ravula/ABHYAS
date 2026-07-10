@@ -33,7 +33,7 @@
             <ul class="nav-links" id="navLinks">
                 {% if user.is_authenticated %}
                 {% if user.profile.role == 'admin' %}
-                <li><a href="{% url 'admin_dashboard' %}" data-umami-event="nav.dashboard">Dashboard</a></li>
+                <li><a href="{% url 'admin_log' %}" data-umami-event="nav.dashboard">Dashboard</a></li>
                 {% elif user.profile.role == 'staff' %}
                 <li><a href="{% url 'staff_dashboard' %}" data-umami-event="nav.dashboard">Dashboard</a></li>
                 {% else %}
