@@ -192,7 +192,13 @@ def draw_page_border(canvas, doc):
 # ── Authentication Views ────────────────────────────────────────────────────
 
 def index(request):
-    """Homepage - shows countdown, then JS redirects to dashboard."""
+    """Entry point for Abhyas app.
+    
+    - Authenticated (via Vitharn): show 3-second countdown, then JS sends to dashboard.
+    - Not authenticated: immediately redirect to Vitharn landing page.
+    """
+    if not request.user.is_authenticated:
+        return redirect('/vitharn/abhyas/')
     return render(request, 'pyqapp/index.html')
 
 
