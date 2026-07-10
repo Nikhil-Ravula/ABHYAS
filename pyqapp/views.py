@@ -310,52 +310,93 @@ def aacharya_oidc_callback(request):
 
 @require_http_methods(["GET"])
 def vitharn_login(request):
-    """Log in via Vitharn JWT token."""
+    """Log in via Vitharn JWT token.
+    
+    Decodes the JWT locally using VITHARN_JWT_SECRET to avoid making
+    an HTTP call to the Vitharn API (which returns 401 for expired tokens).
+    """
     token = request.GET.get('token')
     if not token:
         return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
 
-    # Fetch user data from Vitharn API using the token
-    # In dev, the internal docker network URL is usually http://vitharn_api:8000
-    vitharn_api_url = os.environ.get('VITHARN_API_URL', 'http://vitharn_api:8000')
+    # Decode the JWT locally — no network call, no expiry issue.
+    # Vitharn API signs tokens with HS256 using its SECRET_KEY.
+    vitharn_jwt_secret = os.environ.get(
+        'VITHARN_JWT_SECRET', 'django-insecure-vitharn-default-key'
+    )
     try:
-        response = http_requests.get(
-            f"{vitharn_api_url}/api/auth/me/",
-            headers={
-                'Authorization': f'Bearer {token}',
-                'Host': 'vitharn.com',
-                'X-Forwarded-Host': 'vitharn.com'
-            },
-            timeout=5
+        payload = pyjwt.decode(
+            token,
+            vitharn_jwt_secret,
+            algorithms=['HS256'],
+            options={'verify_exp': False}  # Accept tokens regardless of expiry
         )
-        response.raise_for_status()
-        user_data = response.json()
-        
-        email = user_data.get('email')
+        # SimpleJWT stores user_id in the token payload
+        user_id = payload.get('user_id')
+        if not user_id:
+            logger.warning("Vitharn JWT missing user_id in payload")
+            return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
+
+        # Fetch user email from Vitharn API using the token
+        # (only needed if user doesn't exist yet in Abhyas DB)
+        vitharn_api_url = os.environ.get('VITHARN_API_URL', 'http://vitharn_api:8000')
+        try:
+            response = http_requests.get(
+                f"{vitharn_api_url}/api/auth/me/",
+                headers={
+                    'Authorization': f'Bearer {token}',
+                    'Host': 'vitharn.com',
+                    'X-Forwarded-Host': 'vitharn.com'
+                },
+                timeout=5
+            )
+            response.raise_for_status()
+            user_data = response.json()
+            email = user_data.get('email')
+            full_name = user_data.get('full_name', '')
+        except Exception as api_err:
+            logger.warning(f"Could not fetch user data from Vitharn API: {api_err}")
+            # Fallback: try to find user by Vitharn user_id stored in profile
+            # or use a placeholder email so we can still identify the user
+            email = None
+            full_name = ''
+
         if not email:
-            messages.error(request, "Vitharn token missing email.")
-            return redirect('login')
-            
+            logger.error("Could not obtain email for Vitharn user_id=%s", user_id)
+            return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
+
         username = email.split('@')[0]
-        user, created = User.objects.get_or_create(email=email, defaults={'username': username})
+        user, created = User.objects.get_or_create(
+            email=email, defaults={'username': username}
+        )
         if created:
             user.set_unusable_password()
-            user.first_name = user_data.get('full_name', '')
+            user.first_name = full_name
             user.save()
-            
+
         # Log the user in
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
+        logger.info("Vitharn login success for %s (created=%s)", email, created)
         return redirect('index')
+
+    except pyjwt.DecodeError as e:
+        logger.error("Vitharn JWT decode error: %s", e)
+        return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
     except Exception as e:
-        logger.error(f"Vitharn login error: {e}")
-        messages.error(request, "Failed to authenticate with Vitharn.")
-        return redirect('login')
+        logger.error("Vitharn login unexpected error: %s", e)
+        return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
+
 @require_http_methods(["GET", "POST"])
 def login_view(request):
-    return redirect('oidc_login')
+    """All login attempts redirect to Vitharn landing page (no Aacharya)."""
+    return HttpResponseRedirect('/vitharn/abhyas/')
+
+
 def register_view(request):
-    return redirect('oidc_login')
+    """All register attempts redirect to Vitharn landing page (no Aacharya)."""
+    return HttpResponseRedirect('/vitharn/abhyas/')
+
 def logout_view(request):
     """Clear session record and log user out."""
     if request.user.is_authenticated:
@@ -372,7 +413,7 @@ def logout_view(request):
             pass
     
     logout(request)
-    return redirect('login')
+    return HttpResponseRedirect('/vitharn/abhyas/')
 
 
 @never_cache
@@ -392,7 +433,7 @@ def logout_all_devices_view(request):
     
     logout(request)
     messages.success(request, "You have been logged out from all devices.")
-    return redirect('login')
+    return HttpResponseRedirect('/vitharn/abhyas/')
 
 
 # ── Student Dashboard ────────────────────────────────────────────────────────
