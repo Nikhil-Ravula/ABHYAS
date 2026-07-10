@@ -40,8 +40,6 @@
                 <li><a href="{% url 'student_dashboard' %}" data-umami-event="nav.dashboard">Dashboard</a></li>
                 {% endif %}
                 <li><a href="{% url 'logout' %}" data-umami-event="nav.logout">Logout</a></li>
-                {% else %}
-                <li><a href="/abhyas" class="btn btn-primary btn-sm" data-umami-event="nav.login">Enter Abhyas</a></li>
                 {% endif %}
             </ul>
         </div>
@@ -63,10 +61,6 @@
                 {% if user.is_authenticated %}
                 <a href="{% url 'student_dashboard' %}" class="btn btn-primary btn-lg" data-umami-event="home.dashboard">
                     <i class="fas fa-th-large"></i> Go to Dashboard
-                </a>
-                {% else %}
-                <a href="/abhyas" class="btn btn-primary btn-lg" data-umami-event="home.login">
-                    <i class="fas fa-sign-in-alt"></i> Enter Abhyas
                 </a>
                 {% endif %}
             </div>
