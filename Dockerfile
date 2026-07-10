@@ -12,7 +12,11 @@ RUN pip install gunicorn psycopg2-binary dj-database-url whitenoise django-stora
 
 COPY . /app/
 
-RUN python manage.py collectstatic --no-input
+RUN DATABASE_URL=sqlite:///tmp/db.sqlite3 \
+    NIDHI_MINIO_URL=http://dummy \
+    NIDHI_MINIO_ACCESS_KEY=dummy \
+    NIDHI_MINIO_SECRET_KEY=dummy \
+    python manage.py collectstatic --no-input
 
 EXPOSE 8000
 
