@@ -71,12 +71,33 @@ def main():
     sqlite_tables = {r['name'] for r in sqlite_cur.fetchall()}
 
     # Skip django_migrations — fresh migrations already ran
-    skip_tables = {'django_migrations'}
+    # Also skip auth_* tables as requested by the user, we don't want old users
+    skip_tables = {
+        'django_migrations',
+        'auth_user',
+        'auth_group',
+        'auth_group_permissions',
+        'auth_permission',
+        'auth_user_groups',
+        'auth_user_user_permissions',
+        'django_session',
+        'django_admin_log',
+        'pyqapp_usersession',
+    }
     available = [t for t in TABLE_ORDER if t in sqlite_tables and t not in skip_tables]
     print(f"Tables to restore ({len(available)}): {available}")
     print()
 
     with connection.cursor() as cursor:
+        # Get or create a fallback user for foreign keys (since we aren't importing old users)
+        cursor.execute("SELECT id FROM auth_user ORDER BY id ASC LIMIT 1")
+        fallback_user = cursor.fetchone()
+        if not fallback_user:
+            cursor.execute("INSERT INTO auth_user (password, is_superuser, username, first_name, last_name, email, is_staff, is_active, date_joined) VALUES ('', False, 'legacy_importer', '', '', '', False, True, NOW()) RETURNING id")
+            fallback_user_id = cursor.fetchone()[0]
+        else:
+            fallback_user_id = fallback_user[0]
+
         # Delete all rows from target tables (reverse order for FK safety)
         for table_name in reversed(available):
             try:
@@ -122,6 +143,11 @@ def main():
                     v = row_dict.get(c)
                     if c in bool_cols and v is not None:
                         v = bool(v)
+                    
+                    # Force the uploaded_by_id to be our valid fallback user
+                    if c in ['uploaded_by_id', 'user_id', 'user_id_id']:
+                        v = fallback_user_id
+                        
                     values.append(v)
                 try:
                     cursor.execute(insert_sql, values)

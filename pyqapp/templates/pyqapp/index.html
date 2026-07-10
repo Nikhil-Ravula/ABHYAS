@@ -58,16 +58,11 @@
                 Prepare smarter, not harder.
             </p>
             <div class="hero-btns">
-                {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg" data-umami-event="home.dashboard">
-                    <i class="fas fa-th-large"></i> Go to Dashboard
-                </a>
-                {% endif %}
             </div>
 
             <!-- Timer Section -->
             <div id="redirect-timer" style="margin-top: 2rem; font-size: 1.2rem; font-weight: 600; color: rgba(255, 255, 255, 0.8);">
-                You are entering Abhyas in <span id="countdown" style="color: #0088cc; font-size: 1.5rem;">3</span>...
+                You are entering Abhyas in <span id="countdown" style="color: #0088cc; font-size: 4rem; font-weight: 700;">3</span>...
             </div>
             <script>
                 document.addEventListener("DOMContentLoaded", function() {

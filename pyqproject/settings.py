@@ -127,6 +127,24 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 from nidhi_sdk.django import inject_nidhi_storage
 inject_nidhi_storage(locals())
 
+# Fix for Django 4.2+ (DEFAULT_FILE_STORAGE was removed in Django 5.1)
+if 'DEFAULT_FILE_STORAGE' in locals():
+    STORAGES = {
+        "default": {
+            "BACKEND": locals()['DEFAULT_FILE_STORAGE'],
+        },
+        "staticfiles": {
+            "BACKEND": locals().get('STATICFILES_STORAGE', 'django.contrib.staticfiles.storage.StaticFilesStorage'),
+        }
+    }
+
+# Make MinIO URLs point to Nginx proxy without querystring auth
+if os.environ.get('MEDIA_BUCKET_NAME'):
+    host = os.environ.get('ABHYAS_PUBLIC_URL', 'https://rubix.tail2d2f35.ts.net').replace('https://', '').replace('http://', '')
+    bucket = os.environ.get('MEDIA_BUCKET_NAME')
+    AWS_S3_CUSTOM_DOMAIN = f"{host}/minio/{bucket}"
+    AWS_QUERYSTRING_AUTH = False
+
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 ALLOWED_UPLOAD_EXTENSIONS = {
     'pdf', 'doc', 'docx', 'txt',
