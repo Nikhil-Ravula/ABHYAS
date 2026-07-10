@@ -56,7 +56,7 @@ if [ -z "$DATABASE_URL" ]; then
     exec gunicorn pyqproject.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 300
 fi
 
-DATABASE_URL="postgresql://${DATABASE_URL#postgres://}"
+DATABASE_URL=$(echo "$DATABASE_URL" | sed 's/^postgres:\/\//postgresql:\/\//')
 export DATABASE_URL="$DATABASE_URL"
 echo "Database provisioned successfully."
 
