@@ -97,6 +97,7 @@ USE_I18N = True
 USE_TZ = True
 
 FORCE_SCRIPT_NAME = '/vitharn/abhyas/app'
+LOGIN_URL = '/vitharn/abhyas/'
 
 STATIC_URL = '/vitharn/abhyas/static/'
 
