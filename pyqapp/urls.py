@@ -9,6 +9,7 @@ urlpatterns = [
     path('logout-all-devices/', views.logout_all_devices_view, name='logout_all_devices'),
     path('auth/aacharya/', views.oidc_login, name='oidc_login'),
     path('auth/aacharya/callback/', views.aacharya_oidc_callback, name='aacharya_oidc_callback'),
+    path('auth/vitharn/login/', views.vitharn_login, name='vitharn_login'),
     path('dashboard/', views.student_dashboard, name='dashboard'),
     path('staff/', views.staff_dashboard, name='staff_dashboard'),
     path('support/', views.support_view, name='support'),

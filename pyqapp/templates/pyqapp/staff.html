@@ -18,7 +18,7 @@
 
     <nav class="navbar">
         <div class="container">
-            <a href="/" class="nav-brand" data-umami-event="nav.abhyas">
+            <a href="{% url 'index' %}" class="nav-brand" data-umami-event="nav.abhyas">
                 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
                 <span>ABHYAS</span>
             </a>
@@ -230,9 +230,9 @@
                                 <td>{{ p.year }}</td>
                                 <td><span class="paper-badge badge-type">{{ p.paper_type }}</span></td>
                                 <td style="display: flex; gap: 8px;">
-                                    <a href="/view-paper/{{ p.id }}/" target="_blank" class="icon-btn icon-btn-view"
+                                    <a href="{% url 'view_paper' p.id %}" target="_blank" class="icon-btn icon-btn-view"
                                         title="View" data-umami-event="staff.paper.view"><i class="fas fa-eye"></i></a>
-                                    <a href="/download-paper/{{ p.id }}/" class="icon-btn" style="color:var(--success);"
+                                    <a href="{% url 'download_paper' p.id %}" class="icon-btn" style="color:var(--success);"
                                         title="Download" data-umami-event="staff.paper.download"><i class="fas fa-download"></i></a>
                                     <button type="button" class="icon-btn" style="color:var(--secondary); border:none; background:none;" title="Edit"
                                         onclick="openEditPaperModal({{ p.id }}, '{{ p.subject|escapejs }}', {{ p.year }}, '{{ p.paper_type }}', '{{ p.regulation }}', '{{ p.hashtags|escapejs }}', '{{ p.branch|escapejs }}')" data-umami-event="staff.paper.edit"><i class="fas fa-pen"></i></button>
@@ -279,7 +279,7 @@
                                 <td style="text-align:center;">{{ iq.q_count }}</td>
                                 <td style="display: flex; gap: 8px;">
                                     <!-- Download IQ PDF -->
-                                    <a href="/download-iq-pdf/?search={{ iq.subject }}&unit={{ iq.unit }}&type={{ iq.question_type }}"
+                                    <a href="{% url 'download_iq_pdf' %}?search={{ iq.subject }}&unit={{ iq.unit }}&type={{ iq.question_type }}"
                                         class="icon-btn" style="color:var(--success);" title="Download PDF" data-umami-event="staff.iq.download"><i
                                             class="fas fa-download"></i></a>
 

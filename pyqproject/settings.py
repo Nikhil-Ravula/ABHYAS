@@ -97,9 +97,16 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-FORCE_SCRIPT_NAME = os.environ.get('FORCE_SCRIPT_NAME', '/abhyas/app')
-_script_parent = posixpath.dirname(FORCE_SCRIPT_NAME.rstrip('/'))
-STATIC_URL = os.environ.get('STATIC_URL', f'{_script_parent}/static/')
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
+
+if ENVIRONMENT == 'production':
+    FORCE_SCRIPT_NAME = '/abhyas/app'
+    LOGIN_URL = '/abhyas/'
+    STATIC_URL = '/abhyas/static/'
+else:
+    FORCE_SCRIPT_NAME = '/vitharn/abhyas/app'
+    LOGIN_URL = '/vitharn/abhyas/'
+    STATIC_URL = '/vitharn/abhyas/static/'
 
 # Aacharya OIDC SSO
 AACHARYA_OIDC = {
@@ -111,8 +118,7 @@ AACHARYA_OIDC = {
 AACHARYA_OIDC['AUTHORIZE_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/authorize/"
 AACHARYA_OIDC['TOKEN_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/token/"
 AACHARYA_OIDC['USERINFO_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/userinfo/"
-ABHYAS_PUBLIC_URL = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com')
-AACHARYA_OIDC['REDIRECT_URI'] = f"{ABHYAS_PUBLIC_URL}{FORCE_SCRIPT_NAME}/auth/aacharya/callback/"
+AACHARYA_OIDC['REDIRECT_URI'] = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com') + FORCE_SCRIPT_NAME + '/auth/aacharya/callback/'
 STATICFILES_DIRS = []
 
 # Umami Analytics
@@ -121,14 +127,35 @@ UMAMI_WEBSITE_ID = os.environ.get('UMAMI_WEBSITE_ID', '')
 
 FAVICON_URL = os.environ.get('FAVICON_URL', f'{_script_parent}/static/favicon.ico')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-MEDIA_URL = os.environ.get('MEDIA_URL', f'{_script_parent}/media/')
+if ENVIRONMENT == 'production':
+    MEDIA_URL = '/abhyas/media/'
+else:
+    MEDIA_URL = '/vitharn/abhyas/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Nidhi MinIO Storage via SDK
 from nidhi_sdk.django import inject_nidhi_storage
 inject_nidhi_storage(locals())
+
+# Fix for Django 4.2+ (DEFAULT_FILE_STORAGE was removed in Django 5.1)
+if 'DEFAULT_FILE_STORAGE' in locals():
+    STORAGES = {
+        "default": {
+            "BACKEND": locals()['DEFAULT_FILE_STORAGE'],
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        }
+    }
+
+# Make MinIO URLs point to Nginx proxy without querystring auth
+if os.environ.get('MEDIA_BUCKET_NAME'):
+    host = os.environ.get('ABHYAS_PUBLIC_URL', 'https://rubix.tail2d2f35.ts.net').replace('https://', '').replace('http://', '')
+    bucket = os.environ.get('MEDIA_BUCKET_NAME')
+    AWS_S3_CUSTOM_DOMAIN = f"{host}/minio/{bucket}"
+    AWS_QUERYSTRING_AUTH = False
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 ALLOWED_UPLOAD_EXTENSIONS = {

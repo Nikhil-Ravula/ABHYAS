@@ -18,7 +18,7 @@ import secrets
 from datetime import datetime
 import unicodedata
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.db.models import Q, Count, Max, F
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
@@ -194,13 +194,13 @@ def draw_page_border(canvas, doc):
 # ── Authentication Views ────────────────────────────────────────────────────
 
 def index(request):
-    """Homepage - redirects authenticated users to their dashboard."""
-    if request.user.is_authenticated:
-        if request.user.is_superuser:
-            return redirect('admin_log')
-        if request.user.is_staff:
-            return redirect('staff_dashboard')
-        return redirect('dashboard')
+    """Entry point for Abhyas app.
+    
+    - Authenticated (via Vitharn): show 3-second countdown, then JS sends to dashboard.
+    - Not authenticated: immediately redirect to Vitharn landing page.
+    """
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(settings.LOGIN_URL)
     return render(request, 'pyqapp/index.html')
 
 
@@ -329,165 +329,117 @@ def aacharya_oidc_callback(request):
     return redirect('dashboard')
 
 
+@require_http_methods(["GET"])
+def vitharn_login(request):
+    """Log in via Vitharn JWT token.
+    
+    Decodes the JWT locally using VITHARN_JWT_SECRET to avoid making
+    an HTTP call to the Vitharn API (which returns 401 for expired tokens).
+    """
+    token = request.GET.get('token')
+    if not token:
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
+
+    # Decode the JWT locally — no network call, no expiry issue.
+    # Vitharn API signs tokens with HS256 using its SECRET_KEY.
+    vitharn_jwt_secret = os.environ.get(
+        'VITHARN_JWT_SECRET', 'django-insecure-vitharn-default-key'
+    )
+    try:
+        payload = pyjwt.decode(
+            token,
+            vitharn_jwt_secret,
+            algorithms=['HS256'],
+            options={'verify_exp': False}  # Accept tokens regardless of expiry
+        )
+        # SimpleJWT stores user_id in the token payload
+        user_id = payload.get('user_id')
+        if not user_id:
+            logger.warning("Vitharn JWT missing user_id in payload")
+            return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
+
+        # Check if the new token format includes email and full_name directly
+        email = payload.get('email')
+        full_name = payload.get('full_name', '')
+
+        # Fallback to Vitharn API if email is missing (for older tokens)
+        if not email:
+            vitharn_api_url = os.environ.get('VITHARN_API_URL', 'http://vitharn_api:8000')
+            try:
+                response = http_requests.get(
+                    f"{vitharn_api_url}/api/auth/me/",
+                    headers={
+                        'Authorization': f'Bearer {token}',
+                        'Host': 'vitharn.com',
+                        'X-Forwarded-Host': 'vitharn.com'
+                    },
+                    timeout=5
+                )
+                response.raise_for_status()
+                user_data = response.json()
+                email = user_data.get('email')
+                full_name = user_data.get('full_name', '')
+            except Exception as api_err:
+                logger.warning(f"Could not fetch user data from Vitharn API: {api_err}")
+                messages.warning(request, "Vitharn token expired, using limited identity.")
+
+        if not email:
+            # Fallback: use vitharn user_id to create a stable synthetic identity.
+            logger.warning(
+                "Using synthetic identity for Vitharn user_id=%s (API unavailable)", user_id
+            )
+            email = f"vitharn_{user_id}@vitharn.internal"
+            if not full_name:
+                full_name = f"Vitharn User {user_id}"
+
+        username = email.split('@')[0]
+        user, created = User.objects.get_or_create(
+            username=username,
+            defaults={'email': email, 'first_name': full_name[:30]}
+        )
+        
+        # Ensure name updates sync to existing Abhyas profiles
+        if not created and user.first_name != full_name[:30]:
+            user.first_name = full_name[:30]
+            user.save(update_fields=['first_name'])
+        if created:
+            user.set_unusable_password()
+            user.first_name = full_name
+            user.save()
+
+        # Log the user in
+        user.backend = 'django.contrib.auth.backends.ModelBackend'
+        login(request, user)
+        logger.info("Vitharn login success for %s (created=%s)", email, created)
+        return redirect('index')
+
+    except pyjwt.DecodeError as e:
+        logger.error("Vitharn JWT decode error: %s", e)
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
+    except pyjwt.ExpiredSignatureError:
+        logger.warning("Vitharn login failed: ExpiredSignatureError")
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
+    except Exception as e:
+        logger.error("Vitharn login unexpected error: %s", e)
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
+
 @require_http_methods(["GET", "POST"])
 def login_view(request):
-    """
-    Handle user login with single-device enforcement and rate limiting.
-
-    - Blocks username after 5 failed attempts for 15 minutes (brute-force protection)
-    - Invalidates any existing session to enforce single-device login policy
-    - Increments login_count on each successful login
-    """
-    if request.method == 'POST':
-        login_input = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
-
-        # ── Rate Limit Check ──────────────────────────────────────────────
-        if _is_rate_limited(login_input):
-            messages.error(request, "Too many failed login attempts. Please try again in 15 minutes.")
-            logger.warning(f"Rate-limited login attempt for: {login_input}")
-            return render(request, 'pyqapp/login.html')
-
-        # Allow login with either username or email
-        username = login_input
-        if '@' in login_input:
-            try:
-                email_user = User.objects.get(email__iexact=login_input)
-                username = email_user.username
-            except User.DoesNotExist:
-                username = login_input  # Will fail auth, but shows proper error
-
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
-            # ── Rate Limit Reset ──────────────────────────────────────────
-            _reset_rate_limit(login_input)
-
-            # ── Single Device Login: Invalidate previous session ──────────
-            from django.contrib.sessions.models import Session
-            try:
-                old_session = user.user_session
-                if old_session.session_key:
-                    try:
-                        Session.objects.get(session_key=old_session.session_key).delete()
-                        logger.info(f"Invalidated previous session for user {user.username}")
-                    except Session.DoesNotExist:
-                        pass
-            except UserSession.DoesNotExist:
-                pass
-
-            # Log the user in
-            login(request, user)
-
-            if not request.session.session_key:
-                request.session.save()
-
-            # ── Save session record + increment login count ───────────────
-            user_session, created = UserSession.objects.get_or_create(
-                user=user,
-                defaults={
-                    'session_key': request.session.session_key,
-                    'login_count': 1,
-                }
-            )
-            if not created:
-                user_session.session_key = request.session.session_key
-                user_session.login_count = F('login_count') + 1
-                user_session.save(update_fields=['session_key', 'login_count'])
-
-            logger.info(f"User {user.username} logged in successfully")
-
-            # ── Activity Log (exclude superusers) ─────────────────────────
-            if not user.is_superuser:
-                ActivityLog.objects.create(user=user, event_type='login')
-
-            # Redirect to appropriate dashboard
-            if user.is_superuser:
-                return redirect('admin_log')
-            if user.is_staff:
-                return redirect('staff_dashboard')
-            return redirect('dashboard')
-        else:
-            # ── Record failed attempt ─────────────────────────────────────
-            _record_failed_attempt(login_input)
-            messages.error(request, "Invalid username/email or password.")
-
-            # Determine specific failure reason for admin logs
-            if '@' in login_input:
-                if User.objects.filter(email__iexact=login_input).exists():
-                    fail_reason = "password mismatch (email exists)"
-                else:
-                    fail_reason = "email not found"
-            else:
-                if User.objects.filter(username=login_input).exists():
-                    fail_reason = "password mismatch (username exists)"
-                else:
-                    fail_reason = "account not found"
-            logger.warning(f"Failed login attempt for: {login_input} | Reason: {fail_reason}")
-
-    return render(request, 'pyqapp/login.html')
+    """All login attempts redirect to Vitharn landing page (no Aacharya)."""
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
 
 @require_http_methods(["GET", "POST"])
+def abhyas_logout(request):
+    """Log out from Abhyas and redirect to Vitharn login."""
+    logout(request)
+    return HttpResponseRedirect(settings.LOGIN_URL)
+
+
 def register_view(request):
-    """
-    Handle new user registration with generic error messages and bot protection.
+    """All register attempts redirect to Vitharn landing page (no Aacharya)."""
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
-    Uses a honeypot hidden field to silently reject automated bot submissions.
-    Uses generic messages to prevent user enumeration attacks.
-    """
-    if request.method == 'POST':
-        # ── Honeypot Bot Check ────────────────────────────────────────────
-        # Real users never see or fill this field. Bots fill everything.
-        if request.POST.get('website', ''):
-            logger.warning("Bot registration attempt detected (honeypot triggered)")
-            return redirect('register')  # Silent rejection
-
-        username = request.POST.get('username', '').strip()
-        email = request.POST.get('email', '').strip()
-        password = request.POST.get('password', '')
-
-        # Validate inputs
-        if not all([username, email, password]):
-            messages.error(request, "All fields are required")
-            return render(request, 'pyqapp/register.html')
-
-        if len(username) < 3:
-            messages.error(request, "Username must be at least 3 characters")
-            return render(request, 'pyqapp/register.html')
-
-        if len(password) < 8:
-            messages.error(request, "Password must be at least 8 characters")
-            return render(request, 'pyqapp/register.html')
-
-        username_exists = User.objects.filter(username=username).exists()
-        email_exists = User.objects.filter(email=email).exists()
-
-        if username_exists or email_exists:
-            if username_exists:
-                messages.error(request, "This Username is already taken")
-            if email_exists:
-                messages.error(request, "This Email is already registered")
-
-            logger.warning(f"Registration attempt for existing user/email: {username} / {email}")
-            return render(request, 'pyqapp/register.html')
-        else:
-            try:
-                User.objects.create_user(username=username, email=email, password=password)
-                messages.success(request, "Account created! You can now login.")
-                logger.info(f"New user registered: {username}")
-            except Exception as e:
-                logger.error(f"Error creating user {username}: {e}")
-                messages.error(request, "An error occurred during registration")
-                return render(request, 'pyqapp/register.html')
-
-        return redirect('login')
-
-    return render(request, 'pyqapp/register.html')
-
-
-@never_cache
-@login_required
 def logout_view(request):
     """Clear session record and log user out."""
     if request.user.is_authenticated:
@@ -504,7 +456,13 @@ def logout_view(request):
             pass
     
     logout(request)
-    return redirect('login')
+    return HttpResponseRedirect(settings.LOGIN_URL)
+
+
+def vitharn_logout(request):
+    """Explicitly clear sessions when Vitharn single sign-out occurs."""
+    logout(request)
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
 
 @never_cache
@@ -524,7 +482,7 @@ def logout_all_devices_view(request):
     
     logout(request)
     messages.success(request, "You have been logged out from all devices.")
-    return redirect('login')
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
 
 # ── Student Dashboard ────────────────────────────────────────────────────────
