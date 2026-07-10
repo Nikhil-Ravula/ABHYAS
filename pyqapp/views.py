@@ -198,7 +198,7 @@ def index(request):
     - Not authenticated: immediately redirect to Vitharn landing page.
     """
     if not request.user.is_authenticated:
-        return redirect('/vitharn/abhyas/')
+        return HttpResponseRedirect(settings.LOGIN_URL)
     return render(request, 'pyqapp/index.html')
 
 
@@ -317,7 +317,7 @@ def vitharn_login(request):
     """
     token = request.GET.get('token')
     if not token:
-        return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
 
     # Decode the JWT locally — no network call, no expiry issue.
     # Vitharn API signs tokens with HS256 using its SECRET_KEY.
@@ -335,7 +335,7 @@ def vitharn_login(request):
         user_id = payload.get('user_id')
         if not user_id:
             logger.warning("Vitharn JWT missing user_id in payload")
-            return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
+            return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
 
         # Check if the new token format includes email and full_name directly
         email = payload.get('email')
@@ -394,20 +394,30 @@ def vitharn_login(request):
 
     except pyjwt.DecodeError as e:
         logger.error("Vitharn JWT decode error: %s", e)
-        return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
+    except pyjwt.ExpiredSignatureError:
+        logger.warning("Vitharn login failed: ExpiredSignatureError")
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
     except Exception as e:
         logger.error("Vitharn login unexpected error: %s", e)
-        return HttpResponseRedirect('/vitharn/abhyas/?auth_error=1')
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
 
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     """All login attempts redirect to Vitharn landing page (no Aacharya)."""
-    return HttpResponseRedirect('/vitharn/abhyas/')
+    return HttpResponseRedirect(settings.LOGIN_URL)
+
+
+@require_http_methods(["GET", "POST"])
+def abhyas_logout(request):
+    """Log out from Abhyas and redirect to Vitharn login."""
+    logout(request)
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
 
 def register_view(request):
     """All register attempts redirect to Vitharn landing page (no Aacharya)."""
-    return HttpResponseRedirect('/vitharn/abhyas/')
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
 def logout_view(request):
     """Clear session record and log user out."""
@@ -425,7 +435,13 @@ def logout_view(request):
             pass
     
     logout(request)
-    return HttpResponseRedirect('/vitharn/abhyas/')
+    return HttpResponseRedirect(settings.LOGIN_URL)
+
+
+def vitharn_logout(request):
+    """Explicitly clear sessions when Vitharn single sign-out occurs."""
+    logout(request)
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
 
 @never_cache
@@ -445,7 +461,7 @@ def logout_all_devices_view(request):
     
     logout(request)
     messages.success(request, "You have been logged out from all devices.")
-    return HttpResponseRedirect('/vitharn/abhyas/')
+    return HttpResponseRedirect(settings.LOGIN_URL)
 
 
 # ── Student Dashboard ────────────────────────────────────────────────────────

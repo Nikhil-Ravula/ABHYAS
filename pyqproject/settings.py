@@ -96,10 +96,16 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-FORCE_SCRIPT_NAME = '/vitharn/abhyas/app'
-LOGIN_URL = '/vitharn/abhyas/'
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
 
-STATIC_URL = '/vitharn/abhyas/static/'
+if ENVIRONMENT == 'production':
+    FORCE_SCRIPT_NAME = '/abhyas/app'
+    LOGIN_URL = '/abhyas/'
+    STATIC_URL = '/abhyas/static/'
+else:
+    FORCE_SCRIPT_NAME = '/vitharn/abhyas/app'
+    LOGIN_URL = '/vitharn/abhyas/'
+    STATIC_URL = '/vitharn/abhyas/static/'
 
 # Aacharya OIDC SSO
 AACHARYA_OIDC = {
@@ -111,7 +117,7 @@ AACHARYA_OIDC = {
 AACHARYA_OIDC['AUTHORIZE_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/authorize/"
 AACHARYA_OIDC['TOKEN_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/token/"
 AACHARYA_OIDC['USERINFO_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/userinfo/"
-AACHARYA_OIDC['REDIRECT_URI'] = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com') + os.environ.get('FORCE_SCRIPT_NAME', '/abhyas/app') + '/auth/aacharya/callback/'
+AACHARYA_OIDC['REDIRECT_URI'] = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com') + FORCE_SCRIPT_NAME + '/auth/aacharya/callback/'
 STATICFILES_DIRS = []
 
 # Umami Analytics
@@ -120,7 +126,10 @@ UMAMI_WEBSITE_ID = os.environ.get('UMAMI_WEBSITE_ID', '')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-MEDIA_URL = '/vitharn/abhyas/media/'
+if ENVIRONMENT == 'production':
+    MEDIA_URL = '/abhyas/media/'
+else:
+    MEDIA_URL = '/vitharn/abhyas/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Nidhi MinIO Storage via SDK
