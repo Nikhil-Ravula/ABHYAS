@@ -64,6 +64,28 @@
                 </a>
                 {% endif %}
             </div>
+
+            <!-- Timer Section -->
+            <div id="redirect-timer" style="margin-top: 2rem; font-size: 1.2rem; font-weight: 600; color: rgba(255, 255, 255, 0.8);">
+                You are entering Abhyas in <span id="countdown" style="color: #0088cc; font-size: 1.5rem;">3</span>...
+            </div>
+            <script>
+                document.addEventListener("DOMContentLoaded", function() {
+                    let timeLeft = 3;
+                    const timerElem = document.getElementById('countdown');
+                    const interval = setInterval(() => {
+                        timeLeft--;
+                        if (timeLeft >= 0) {
+                            timerElem.innerText = timeLeft;
+                        }
+                        if (timeLeft <= 0) {
+                            clearInterval(interval);
+                            window.location.href = "dashboard/";
+                        }
+                    }, 1000);
+                });
+            </script>
+
             <div class="hero-social"
                 style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 2rem; flex-wrap: wrap;">
                 <!-- Telegram -->
