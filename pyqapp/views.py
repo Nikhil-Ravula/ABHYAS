@@ -321,7 +321,11 @@ def vitharn_login(request):
     try:
         response = http_requests.get(
             f"{vitharn_api_url}/api/auth/me/",
-            headers={'Authorization': f'Bearer {token}'},
+            headers={
+                'Authorization': f'Bearer {token}',
+                'Host': 'vitharn.com',
+                'X-Forwarded-Host': 'vitharn.com'
+            },
             timeout=5
         )
         response.raise_for_status()
