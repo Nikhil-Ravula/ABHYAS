@@ -373,8 +373,14 @@ def vitharn_login(request):
 
         username = email.split('@')[0]
         user, created = User.objects.get_or_create(
-            email=email, defaults={'username': username}
+            username=username,
+            defaults={'email': email, 'first_name': full_name[:30]}
         )
+        
+        # Ensure name updates sync to existing Abhyas profiles
+        if not created and user.first_name != full_name[:30]:
+            user.first_name = full_name[:30]
+            user.save(update_fields=['first_name'])
         if created:
             user.set_unusable_password()
             user.first_name = full_name
