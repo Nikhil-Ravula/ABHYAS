@@ -192,13 +192,7 @@ def draw_page_border(canvas, doc):
 # ── Authentication Views ────────────────────────────────────────────────────
 
 def index(request):
-    """Homepage - redirects authenticated users to their dashboard."""
-    if request.user.is_authenticated:
-        if request.user.is_superuser:
-            return redirect('admin_log')
-        if request.user.is_staff:
-            return redirect('staff_dashboard')
-        return redirect('dashboard')
+    """Homepage - shows countdown, then JS redirects to dashboard."""
     return render(request, 'pyqapp/index.html')
 
 
@@ -346,7 +340,7 @@ def vitharn_login(request):
         # Log the user in
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
-        return redirect('dashboard')
+        return redirect('index')
     except Exception as e:
         logger.error(f"Vitharn login error: {e}")
         messages.error(request, "Failed to authenticate with Vitharn.")
