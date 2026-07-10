@@ -134,7 +134,7 @@ if 'DEFAULT_FILE_STORAGE' in locals():
             "BACKEND": locals()['DEFAULT_FILE_STORAGE'],
         },
         "staticfiles": {
-            "BACKEND": locals().get('STATICFILES_STORAGE', 'django.contrib.staticfiles.storage.StaticFilesStorage'),
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         }
     }
 
