@@ -125,7 +125,7 @@ STATICFILES_DIRS = []
 UMAMI_SRC = os.environ.get('UMAMI_SRC', '')
 UMAMI_WEBSITE_ID = os.environ.get('UMAMI_WEBSITE_ID', '')
 
-FAVICON_URL = os.environ.get('FAVICON_URL', f'{_script_parent}/static/favicon.ico')
+FAVICON_URL = os.environ.get('FAVICON_URL', f'{STATIC_URL}favicon.ico')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
