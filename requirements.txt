@@ -21,6 +21,6 @@ boto3==1.35.0
 django-cors-headers==4.7.0
 cloudinary==1.44.2
 django-cloudinary-storage==0.3.0
-git+https://github.com/Safacts/Nidhi.git@development-v1#subdirectory=nidhi-sdk
+git+https://github.com/Safacts/Nidhi.git@deployment-v1#subdirectory=nidhi-sdk
 PyJWT==2.10.1
 cryptography==46.0.3
