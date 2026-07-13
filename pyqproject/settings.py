@@ -76,10 +76,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pyqproject.wsgi.application'
 
 # Database via Nidhi SDK (DATABASE_URL from nidhi-init.sh)
+# No SQLite fallback — Nidhi is the sole database authority.
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DATABASE_URL', 'REQUIRED_BY_NIDHI'),
     }
 }
 from nidhi_sdk.django import inject_nidhi_database
