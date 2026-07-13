@@ -91,4 +91,4 @@ HEOF
 python /tmp/nidhi_heartbeat.py &
 echo "💓 Heartbeat monitoring started."
 
-exec gunicorn pyqproject.wsgi:application --bind 0.0.0.0 --port 8000 --workers 2 --timeout 300
+exec gunicorn pyqproject.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 300
