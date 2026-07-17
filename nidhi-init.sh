@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+# Local dev mode: no Docker, no Nidhi — skip provisioning entirely
+ENVIRONMENT="${ENVIRONMENT:-development}"
+if [ "$ENVIRONMENT" = "local" ]; then
+    echo "🏠 ENVIRONMENT=local — skipping Nidhi provisioning (SQLite, local file storage)"
+    exec gunicorn pyqproject.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 300
+fi
+
 if [ -z "$NIDHI_DEV_SERVER_URL" ] || [ -z "$NIDHI_APP_API_KEY" ] || [ -z "$PROJECT_SLUG" ]; then
     echo "❌ FATAL: Missing required Nidhi environment variables."
     echo "    NIDHI_DEV_SERVER_URL=${NIDHI_DEV_SERVER_URL:-<unset>}"
@@ -10,7 +17,6 @@ if [ -z "$NIDHI_DEV_SERVER_URL" ] || [ -z "$NIDHI_APP_API_KEY" ] || [ -z "$PROJE
     exit 1
 fi
 
-ENVIRONMENT="${ENVIRONMENT:-development}"
 echo "📡 Contacting Nidhi Control Plane to auto-provision database for '$PROJECT_SLUG' in '$ENVIRONMENT'..."
 
 cat << 'PYEOF' > /tmp/nidhi_req.py

@@ -7,11 +7,17 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY')
-if not SECRET_KEY:
-    raise ValueError("SECRET_KEY environment variable is required.")
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
+local_mode = ENVIRONMENT == 'local'
 
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+if local_mode:
+    DEBUG = True
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'local-dev-only-not-for-production')
+else:
+    DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        raise ValueError("SECRET_KEY environment variable is required.")
 
 allowed_hosts_from_env = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 ALLOWED_HOSTS = allowed_hosts_from_env
@@ -75,16 +81,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'pyqproject.wsgi.application'
 
-# Database via Nidhi SDK (DATABASE_URL from nidhi-init.sh)
-# No SQLite fallback — Nidhi is the sole database authority.
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DATABASE_URL', 'REQUIRED_BY_NIDHI'),
+# Database
+if local_mode:
+    # Local dev: SQLite — no Docker, no Nidhi, no Postgres
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
-from nidhi_sdk.django import inject_nidhi_database
-inject_nidhi_database(locals())
+else:
+    # Dev/prod: Nidhi-provisioned PostgreSQL
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DATABASE_URL', 'REQUIRED_BY_NIDHI'),
+        }
+    }
+    from nidhi_sdk.django import inject_nidhi_database
+    inject_nidhi_database(locals())
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -98,9 +113,11 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
-
-if ENVIRONMENT == 'production':
+if local_mode:
+    LOGIN_URL = '/login/'
+    STATIC_URL = '/static/'
+    FORCE_SCRIPT_NAME = ''
+elif ENVIRONMENT == 'production':
     FORCE_SCRIPT_NAME = '/abhyas/app'
     LOGIN_URL = '/abhyas/'
     STATIC_URL = '/abhyas/static/'
@@ -119,7 +136,10 @@ AACHARYA_OIDC = {
 AACHARYA_OIDC['AUTHORIZE_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/authorize/"
 AACHARYA_OIDC['TOKEN_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/token/"
 AACHARYA_OIDC['USERINFO_URL'] = f"{AACHARYA_OIDC['BASE_URL']}/o/userinfo/"
-AACHARYA_OIDC['REDIRECT_URI'] = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com') + FORCE_SCRIPT_NAME + '/auth/aacharya/callback/'
+if local_mode:
+    AACHARYA_OIDC['REDIRECT_URI'] = 'http://127.0.0.1:8000/auth/aacharya/callback/'
+else:
+    AACHARYA_OIDC['REDIRECT_URI'] = os.environ.get('ABHYAS_PUBLIC_URL', 'https://vitharn.com') + FORCE_SCRIPT_NAME + '/auth/aacharya/callback/'
 STATICFILES_DIRS = []
 
 # Umami Analytics
@@ -130,15 +150,18 @@ FAVICON_URL = os.environ.get('FAVICON_URL', f'{STATIC_URL}favicon.ico')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-if ENVIRONMENT == 'production':
+if local_mode:
+    MEDIA_URL = '/media/'
+elif ENVIRONMENT == 'production':
     MEDIA_URL = '/abhyas/media/'
 else:
     MEDIA_URL = '/vitharn/abhyas/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Nidhi MinIO Storage via SDK
-from nidhi_sdk.django import inject_nidhi_storage
-inject_nidhi_storage(locals())
+# Nidhi MinIO Storage via SDK (skip in local mode — uses local file storage)
+if not local_mode:
+    from nidhi_sdk.django import inject_nidhi_storage
+    inject_nidhi_storage(locals())
 
 # Fix for Django 4.2+ (DEFAULT_FILE_STORAGE was removed in Django 5.1)
 if 'DEFAULT_FILE_STORAGE' in locals():
