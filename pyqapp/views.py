@@ -411,7 +411,11 @@ def vitharn_login(request):
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
         logger.info("Vitharn login success for %s (created=%s)", email, created)
-        return redirect('index')
+        if user.is_superuser:
+            return redirect('admin_log')
+        if user.is_staff:
+            return redirect('staff_dashboard')
+        return redirect('links')
 
     except pyjwt.DecodeError as e:
         logger.error("Vitharn JWT decode error: %s", e)
@@ -436,6 +440,10 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            if user.is_superuser:
+                return redirect('admin_log')
+            if user.is_staff:
+                return redirect('staff_dashboard')
             return redirect('links')
         messages.error(request, 'Invalid username or password.')
 
