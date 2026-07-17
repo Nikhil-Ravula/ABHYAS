@@ -30,6 +30,71 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --font-main: 'Inter', sans-serif;
     --font-heading: 'Poppins', sans-serif;
+    
+    --bg-navbar: rgba(15, 14, 23, 0.8);
+    --bg-modal: #1a1a2e;
+    --bg-checkbox: rgba(255, 255, 255, 0.06);
+    --bg-checkbox-hover: rgba(108, 99, 255, 0.1);
+    --bg-checkbox-checked: rgba(108, 99, 255, 0.2);
+    --bg-ticket-body: rgba(0, 0, 0, 0.15);
+    --bg-ann-gradient-start: rgba(108, 99, 255, 0.18);
+    --bg-ann-gradient-end: rgba(15, 14, 23, 0.95);
+}
+
+/* ===== Light Theme Overrides ===== */
+html[data-theme="light"] {
+    --bg-dark: #F3F4F6;
+    --bg-card: rgba(255, 255, 255, 0.7);
+    --bg-card-hover: rgba(255, 255, 255, 0.95);
+    --bg-glass: rgba(255, 255, 255, 0.65);
+    --text-primary: #1F2937;
+    --text-secondary: #4B5563;
+    --text-muted: #6B7280;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-light: rgba(0, 0, 0, 0.12);
+    --shadow: 0 8px 32px rgba(31, 41, 55, 0.05);
+    --shadow-lg: 0 20px 40px rgba(31, 41, 55, 0.08);
+    --bg-navbar: rgba(243, 244, 246, 0.8);
+    --bg-modal: #FFFFFF;
+    --bg-checkbox: rgba(0, 0, 0, 0.03);
+    --bg-checkbox-hover: rgba(108, 99, 255, 0.08);
+    --bg-checkbox-checked: rgba(108, 99, 255, 0.12);
+    --bg-ticket-body: rgba(0, 0, 0, 0.03);
+    --bg-ann-gradient-start: rgba(108, 99, 255, 0.12);
+    --bg-ann-gradient-end: rgba(255, 255, 255, 0.95);
+}
+
+html[data-theme="light"] body::before {
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(108, 99, 255, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(0, 210, 255, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 40% 80%, rgba(255, 101, 132, 0.05) 0%, transparent 50%);
+}
+
+/* ===== Theme Toggle Button ===== */
+.theme-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    margin-left: auto;
+    margin-right: 10px;
+    z-index: 1002;
+}
+
+.theme-toggle-btn:hover {
+    background: var(--bg-card);
+    color: var(--primary-light);
+    transform: rotate(15deg);
 }
 
 /* ===== Reset & Base ===== */
@@ -151,7 +216,7 @@ img { max-width: 100%; height: auto; }
     top: 0; left: 0; right: 0;
     z-index: 1000;
     padding: 15px 0;
-    background: rgba(15, 14, 23, 0.8);
+    background: var(--bg-navbar, rgba(15, 14, 23, 0.8));
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
@@ -398,7 +463,7 @@ select.form-control {
 }
 
 select.form-control option {
-    background: #1a1a2e;
+    background: var(--bg-modal, #1a1a2e);
     color: var(--text-primary);
 }
 
@@ -912,7 +977,7 @@ textarea.form-control {
 }
 
 .filter-panel .filter-group select option {
-    background: #1a1a2e;
+    background: var(--bg-modal, #1a1a2e);
     color: var(--text-primary);
 }
 
@@ -1420,7 +1485,7 @@ textarea.form-control {
     flex-wrap: wrap;
     gap: 10px;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--bg-checkbox, rgba(255, 255, 255, 0.04));
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
 }
@@ -1430,7 +1495,7 @@ textarea.form-control {
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--bg-checkbox, rgba(255, 255, 255, 0.06));
     border: 1px solid var(--border);
     border-radius: var(--radius-xs);
     cursor: pointer;
@@ -1444,7 +1509,7 @@ textarea.form-control {
 .checkbox-item:hover {
     border-color: var(--primary);
     color: var(--text-primary);
-    background: rgba(108, 99, 255, 0.1);
+    background: var(--bg-checkbox-hover, rgba(108, 99, 255, 0.1));
 }
 
 .checkbox-item input[type="checkbox"] {
@@ -1455,7 +1520,7 @@ textarea.form-control {
 }
 
 .checkbox-item:has(input:checked) {
-    background: rgba(108, 99, 255, 0.2);
+    background: var(--bg-checkbox-checked, rgba(108, 99, 255, 0.2));
     border-color: var(--primary);
     color: var(--primary-light);
 }
@@ -1490,7 +1555,7 @@ textarea.form-control {
 }
 
 .modal-content {
-    background: #1a1a2e;
+    background: var(--bg-modal, #1a1a2e);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 30px;

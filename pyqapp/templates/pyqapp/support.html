@@ -12,6 +12,12 @@
     {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
     <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
     {% endif %}
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
 </head>
 
 <body>
@@ -22,6 +28,9 @@
                 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
                 <span>ABHYAS</span>
             </a>
+            <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+                <i class="fas fa-moon"></i>
+            </button>
             <div class="hamburger"
                 onclick="this.classList.toggle('active'); document.getElementById('navLinks').classList.toggle('active');">
                 <span></span><span></span><span></span>
@@ -112,6 +121,7 @@
     </div>
 
 
+    <script src="{% static 'js/theme.js' %}"></script>
 </body>
 
 </html>
