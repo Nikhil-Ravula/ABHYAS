@@ -12,6 +12,12 @@
     {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
     <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
     {% endif %}
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     <style>
         .admin-stats-grid {
             display: grid;
@@ -129,7 +135,7 @@
             line-height: 1.7;
             margin-bottom: 16px;
             padding: 14px;
-            background: rgba(0, 0, 0, 0.15);
+            background: var(--bg-ticket-body);
             border-radius: var(--radius-sm);
         }
 
@@ -190,7 +196,7 @@
         .reply-form {
             margin-top: 16px;
             padding: 16px;
-            background: rgba(255, 255, 255, 0.03);
+            background: var(--bg-checkbox);
             border-radius: var(--radius-sm);
             border: 1px solid var(--border);
         }
@@ -439,6 +445,9 @@
                 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
                 <span>ABHYAS</span>
             </a>
+            <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+                <i class="fas fa-moon"></i>
+            </button>
             <div class="hamburger"
                 onclick="this.classList.toggle('active'); document.getElementById('navLinks').classList.toggle('active');">
                 <span></span><span></span><span></span>
@@ -1404,6 +1413,7 @@
         }
     </script>
 
+    <script src="{% static 'js/theme.js' %}"></script>
 </body>
 
 <!-- ===== Edit PYQ Modal ===== -->

@@ -12,6 +12,12 @@
     {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
     <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
     {% endif %}
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
 </head>
 
 <body>
@@ -22,6 +28,9 @@
                 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
                 <span>ABHYAS</span>
             </a>
+            <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+                <i class="fas fa-moon"></i>
+            </button>
         </div>
     </nav>
 
@@ -70,7 +79,7 @@
                     Already have an account? <a href="{% url 'login' %}" style="color: var(--primary-light);" data-umami-event="register.login">Login
                         here</a>
                 </p>
-                <div style="text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.85rem; color: var(--text-secondary);">
+                <div style="text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-secondary);">
                     Having issues? We're here to help on <a href="https://t.me/unknown_bot_5" target="_blank" rel="noopener noreferrer" data-umami-event="register.telegram" style="color: #0088cc; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fab fa-telegram"></i> Telegram</a>
                 </div>
             </div>
@@ -82,6 +91,7 @@
         history.replaceState(null, '', window.location.href);
     </script>
 
+    <script src="{% static 'js/theme.js' %}"></script>
 </body>
 
 </html>
