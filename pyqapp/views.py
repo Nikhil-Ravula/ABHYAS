@@ -425,8 +425,21 @@ def vitharn_login(request):
 
 @require_http_methods(["GET", "POST"])
 def login_view(request):
-    """All login attempts redirect to Vitharn landing page (no Aacharya)."""
-    return HttpResponseRedirect(settings.LOGIN_URL)
+    """Login view — redirects to Vitharn in dev/prod, handles form locally."""
+    if getattr(settings, 'ENVIRONMENT', 'development') != 'local':
+        return HttpResponseRedirect(settings.LOGIN_URL)
+
+    if request.method == 'POST':
+        from django.contrib.auth import authenticate, login
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
+        messages.error(request, 'Invalid username or password.')
+
+    return render(request, 'pyqapp/login.html')
 
 
 @require_http_methods(["GET", "POST"])
@@ -437,8 +450,31 @@ def abhyas_logout(request):
 
 
 def register_view(request):
-    """All register attempts redirect to Vitharn landing page (no Aacharya)."""
-    return HttpResponseRedirect(settings.LOGIN_URL)
+    """Register view — redirects to Vitharn in dev/prod, handles form locally."""
+    if getattr(settings, 'ENVIRONMENT', 'development') != 'local':
+        return HttpResponseRedirect(settings.LOGIN_URL)
+
+    if request.method == 'POST':
+        # Honeypot check
+        if request.POST.get('website'):
+            return redirect('register')
+
+        from django.contrib.auth.models import User
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '')
+
+        if not username or not password:
+            messages.error(request, 'Username and password are required.')
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, 'Username already taken.')
+        else:
+            user = User.objects.create_user(username=username, email=email, password=password)
+            from django.contrib.auth import login
+            login(request, user)
+            return redirect('dashboard')
+
+    return render(request, 'pyqapp/register.html')
 
 def logout_view(request):
     """Clear session record and log user out."""
