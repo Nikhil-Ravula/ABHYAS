@@ -1,0 +1,158 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Links - ABHYAS</title>
+    <link rel="icon" href="{{ FAVICON_URL }}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=5">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
+    <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}"
+        data-auto-track="true"></script>
+    {% endif %}
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container">
+            <a href="{% url 'index' %}" class="nav-brand" data-umami-event="nav.abhyas">
+                <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+                <span>ABHYAS</span>
+            </a>
+            <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="hamburger"
+                onclick="this.classList.toggle('active'); document.getElementById('navLinks').classList.toggle('active');">
+                <span></span><span></span><span></span>
+            </div>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="{% url 'logout' %}" style="color: var(--danger);" data-umami-event="nav.logout">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="container dashboard">
+
+            <div class="dashboard-header animate-up">
+                <div>
+                    <h1><i class="fas fa-link" style="color:var(--secondary)"></i> Links</h1>
+                    <p class="welcome-text">Hello, <strong>{{ user.username }}</strong>! Here are your Links.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ── Links content ── -->
+            <div class="links-grid animate-up-delay"
+                style="display: flex; flex-direction: column; gap: 16px; max-width: 600px;">
+
+                <!-- Profile -->
+                <a href="{% url 'profile' %}" class="card"
+                    style="display: flex; align-items: center; gap: 18px; padding: 20px 24px; text-decoration: none; color: inherit; transition: var(--transition);"
+                    data-umami-event="links.profile">
+                    <div
+                        style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-user" style="color: #fff; font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 3px;">Profile</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Click here to visit your profile
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right"
+                        style="margin-left: auto; color: var(--text-muted); font-size: 0.85rem;"></i>
+                </a>
+
+                <!-- PYQ - Previous Year Questions -->
+                <a href="{% url 'dashboard' %}" class="card"
+                    style="display: flex; align-items: center; gap: 18px; padding: 20px 24px; text-decoration: none; color: inherit; transition: var(--transition);"
+                    data-umami-event="links.pyq">
+                    <div
+                        style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #00C48C, #00D2FF); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-file-alt" style="color: #fff; font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 3px;">Previous Year Questions</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Search and download PYQ papers</div>
+                    </div>
+                    <i class="fas fa-chevron-right"
+                        style="margin-left: auto; color: var(--text-muted); font-size: 0.85rem;"></i>
+                </a>
+
+                <!-- Important Questions -->
+                <a href="{% url 'impq' %}" class="card"
+                    style="display: flex; align-items: center; gap: 18px; padding: 20px 24px; text-decoration: none; color: inherit; transition: var(--transition);"
+                    data-umami-event="links.impq">
+                    <div
+                        style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #F59E0B, #EF4444); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-star" style="color: #fff; font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 3px;">Important Questions</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Browse unit-wise important questions</div>
+                    </div>
+                    <i class="fas fa-chevron-right"
+                        style="margin-left: auto; color: var(--text-muted); font-size: 0.85rem;"></i>
+                </a>
+
+                <!-- Support -->
+                <a href="{% url 'support' %}" class="card"
+                    style="display: flex; align-items: center; gap: 18px; padding: 20px 24px; text-decoration: none; color: inherit; transition: var(--transition);"
+                    data-umami-event="links.support">
+                    <div
+                        style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #6366F1, #8B5CF6); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-headset" style="color: #fff; font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 3px;">Support</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Raise a ticket or view your requests</div>
+                    </div>
+                    <i class="fas fa-chevron-right"
+                        style="margin-left: auto; color: var(--text-muted); font-size: 0.85rem;"></i>
+                </a>
+
+                <!-- Info Notice Card -->
+                <div class="card" style="display: flex; align-items: center; gap: 18px; padding: 20px 24px; cursor: default;">
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #a855f7, #ec4899); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-magic" style="color: #fff; font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 3px; color: var(--text-primary);">More resources are on the way!</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+                            We're currently generating new links and exam preparation features for you. Stay tuned! Thank you for visiting <span style="font-weight: 600; color: var(--primary-light);">ABHYAS</span>.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script src="{% static 'js/theme.js' %}"></script>
+
+</body>
+
+</html>

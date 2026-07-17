@@ -326,7 +326,7 @@ def aacharya_oidc_callback(request):
         return redirect('admin_log')
     if user.is_staff:
         return redirect('staff_dashboard')
-    return redirect('dashboard')
+    return redirect('links')
 
 
 @require_http_methods(["GET"])
@@ -436,7 +436,7 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('dashboard')
+            return redirect('links')
         messages.error(request, 'Invalid username or password.')
 
     return render(request, 'pyqapp/login.html')
@@ -472,7 +472,7 @@ def register_view(request):
             user = User.objects.create_user(username=username, email=email, password=password)
             from django.contrib.auth import login
             login(request, user)
-            return redirect('dashboard')
+            return redirect('links')
 
     return render(request, 'pyqapp/register.html')
 
@@ -675,6 +675,85 @@ def student_dashboard(request):
     years = Paper.objects.values_list('year', flat=True).distinct().order_by('-year')
     announcements = Announcement.objects.filter(is_active=True)
     return render(request, 'pyqapp/student.html', {'years': years, 'announcements': announcements})
+
+
+# ── Links Page ───────────────────────────────────────────────────────────────
+
+@never_cache
+@login_required
+def links_view(request):
+    """Links page — shown immediately after login."""
+    return render(request, 'pyqapp/links.html')
+
+
+# ── Important Questions Page ──────────────────────────────────────────────────
+
+@never_cache
+@login_required
+def impq_view(request):
+    """Important Questions page with AJAX search."""
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        unit = request.GET.get('unit', '').strip()
+        iq_type = request.GET.get('type', '').strip()
+        search = request.GET.get('search', '').strip()
+
+        iqs = ImportantQuestionEntry.objects.all()
+
+        if unit and unit.isdigit():
+            iqs = iqs.filter(unit=int(unit))
+        if iq_type:
+            iqs = iqs.filter(question_type=iq_type)
+        if search:
+            iqs = iqs.filter(
+                Q(subject__iexact=search) |
+                Q(hashtags__iexact=search) |
+                Q(hashtags__istartswith=search + ',') |
+                Q(hashtags__iendswith=',' + search) |
+                Q(hashtags__icontains=',' + search + ',')
+            )
+
+        iqs = iqs.order_by('subject', 'unit', 'question_type', 'question_number')
+
+        if request.user.is_authenticated and search:
+            for q in iqs:
+                IQView.objects.create(subject=q.subject, user=request.user)
+
+        results = []
+        for q in iqs:
+            is_image = False
+            if q.file:
+                ext = q.file.name.lower().split('.')[-1]
+                if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                    is_image = True
+            results.append({
+                'subject': q.subject,
+                'unit': q.unit,
+                'type': q.question_type,
+                'number': q.question_number,
+                'text': escape(q.question_text),
+                'file_url': q.file.url if q.file else '',
+                'original_filename': q.original_filename,
+                'is_image': is_image,
+                'uploader': q.uploaded_by.username,
+                'date': q.uploaded_at.strftime('%d %b, %Y')
+            })
+
+        if request.user.is_authenticated and search and len(search) >= 3 and not request.user.is_superuser:
+            import datetime as dt
+            recent_cutoff = timezone.now() - dt.timedelta(seconds=5)
+            already_logged = ActivityLog.objects.filter(
+                user=request.user, event_type='search_iq',
+                detail__iexact=search, created_at__gte=recent_cutoff
+            ).exists()
+            if not already_logged:
+                ActivityLog.objects.create(
+                    user=request.user, event_type='search_iq',
+                    detail=search, results_count=len(results)
+                )
+
+        return JsonResponse(results, safe=False)
+
+    return render(request, 'pyqapp/impQ.html')
 
 
 # ── Staff Dashboard ──────────────────────────────────────────────────────────
