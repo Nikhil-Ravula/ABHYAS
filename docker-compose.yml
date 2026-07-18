@@ -9,11 +9,13 @@ services:
       - NIDHI_APP_API_KEY=super_secret_app_api_key_123
       - PROJECT_SLUG=abhyas
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      - ALLOWED_HOSTS=localhost,127.0.0.1,rubix.tail2d2f35.ts.net,vitharn.com
       - DEBUG=${DEBUG:-1}
       - ABHYAS_OIDC_CLIENT_SECRET=abhyas-local-dev-secret
       - UMAMI_SRC=${UMAMI_SRC:-https://umami.novamymentor.cloud}
       - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-a279ca2a-3a5c-4cbc-95af-e962cc90cdcc}
       - FORCE_SCRIPT_NAME=/vitharn/abhyas/app
+      - SCRIPT_NAME=/vitharn/abhyas/app
       - FAVICON_URL=/vitharn/favicon.ico
       - ABHYAS_PUBLIC_URL=https://rubix.tail2d2f35.ts.net
     ports:

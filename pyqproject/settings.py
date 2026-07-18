@@ -119,11 +119,11 @@ if local_mode:
     FORCE_SCRIPT_NAME = ''
 elif ENVIRONMENT == 'production':
     FORCE_SCRIPT_NAME = '/abhyas/app'
-    LOGIN_URL = '/abhyas/'
+    LOGIN_URL = '/abhyas/app/'
     STATIC_URL = '/abhyas/static/'
 else:
     FORCE_SCRIPT_NAME = '/vitharn/abhyas/app'
-    LOGIN_URL = '/vitharn/abhyas/'
+    LOGIN_URL = '/vitharn/abhyas/app/'
     STATIC_URL = '/vitharn/abhyas/static/'
 
 # Aacharya OIDC SSO
