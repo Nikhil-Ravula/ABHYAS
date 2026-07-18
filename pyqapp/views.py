@@ -484,6 +484,46 @@ def register_view(request):
 
     return render(request, 'pyqapp/register.html')
 
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def dev_secret_login(request, secret):
+    """Developer-only superuser backdoor login (production only).
+
+    This is intentionally NOT linked anywhere in the UI and is disabled by
+    default. It only activates when:
+      1. ENVIRONMENT == 'production'
+      2. DEV_LOGIN_SECRET env var is set AND matches the ``secret`` URL arg
+    The secret lives only in the production container env (never in the repo),
+    so inspecting the source or the live page reveals nothing usable.
+    Authentication uses Django's native ``authenticate()`` and ONLY succeeds
+    for users who are already ``is_superuser`` — students/SSO users are rejected.
+    """
+    expected = os.environ.get("DEV_LOGIN_SECRET")
+    if settings.ENVIRONMENT != "production" or not expected or secret != expected:
+        return HttpResponseNotFound("Not Found")
+
+    if request.method == "POST":
+        from django.contrib.auth import authenticate, login
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "")
+        user = authenticate(request, username=username, password=password)
+        if user is not None and user.is_superuser:
+            login(request, user)
+            logger.info("Dev secret superuser login for %s", username)
+            return redirect("admin_log")
+        logger.warning("Dev secret login rejected for %s (not superuser or bad creds)", username)
+        return HttpResponse("Forbidden", status=403)
+
+    return HttpResponse(
+        '<!doctype html><meta name="robots" content="noindex"><form method="post">'
+        '<input name="username" placeholder="username" autofocus>'
+        '<input name="password" type="password" placeholder="password">'
+        '<button type="submit">login</button></form>'
+    )
+
+
 def logout_view(request):
     """Clear session record and log user out."""
     if request.user.is_authenticated:

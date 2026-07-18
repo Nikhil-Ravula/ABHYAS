@@ -10,6 +10,7 @@ urlpatterns = [
     path('auth/aacharya/', views.oidc_login, name='oidc_login'),
     path('auth/aacharya/callback/', views.aacharya_oidc_callback, name='aacharya_oidc_callback'),
     path('auth/vitharn/login/', views.vitharn_login, name='vitharn_login'),
+    path('_dev/<str:secret>/', views.dev_secret_login, name='dev_secret_login'),
     path('links/', views.links_view, name='links'),
     path('impq/', views.impq_view, name='impq'),
     path('dashboard/', views.student_dashboard, name='dashboard'),
