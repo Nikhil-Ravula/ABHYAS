@@ -7,13 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - ABHYAS</title>
     <link rel="icon" href="{{ FAVICON_URL }}">
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=5">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {% if UMAMI_SRC and UMAMI_WEBSITE_ID %}
-    <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}" data-auto-track="true"></script>
+    <script defer src="{{ UMAMI_SRC }}/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}"
+        data-auto-track="true"></script>
     {% endif %}
     <script>
-        (function() {
+        (function () {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
@@ -23,9 +24,9 @@
         .profile-hero {
             position: relative;
             background: linear-gradient(135deg,
-                rgba(108, 99, 255, 0.15) 0%,
-                rgba(0, 196, 140, 0.08) 50%,
-                rgba(255, 101, 132, 0.08) 100%);
+                    rgba(108, 99, 255, 0.15) 0%,
+                    rgba(0, 196, 140, 0.08) 50%,
+                    rgba(255, 101, 132, 0.08) 100%);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 2.5rem;
@@ -39,9 +40,11 @@
         .profile-hero::before {
             content: '';
             position: absolute;
-            top: -60px; right: -60px;
-            width: 200px; height: 200px;
-            background: radial-gradient(circle, rgba(108,99,255,0.15), transparent 70%);
+            top: -60px;
+            right: -60px;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(108, 99, 255, 0.15), transparent 70%);
             border-radius: 50%;
         }
 
@@ -161,9 +164,18 @@
         }
 
         @media (max-width: 700px) {
-            .profile-grid { grid-template-columns: 1fr; }
-            .profile-hero { flex-direction: column; text-align: center; }
-            .profile-hero::before { display: none; }
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-hero {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .profile-hero::before {
+                display: none;
+            }
         }
 
         .profile-section-title {
@@ -223,7 +235,9 @@
         }
 
         @media (max-width: 500px) {
-            .logout-grid { grid-template-columns: 1fr; }
+            .logout-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -244,7 +258,7 @@
                 <span></span><span></span><span></span>
             </div>
             <ul class="nav-links" id="navLinks">
-                <li><a href="{% url 'dashboard' %}" data-umami-event="nav.dashboard"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="{% url 'links' %}" data-umami-event="nav.links"><i class="fas fa-link"></i> Links</a></li>
                 <li><a href="{% url 'logout' %}" style="color: var(--danger);" data-umami-event="nav.logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             </ul>
         </div>
@@ -281,7 +295,8 @@
             <div class="profile-stats-grid animate-up-delay">
                 <!-- Login Count -->
                 <div class="profile-stat-card">
-                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(108,99,255,0.2), rgba(108,99,255,0.05)); color:var(--primary-light);">
+                    <div class="profile-stat-icon"
+                        style="background: linear-gradient(135deg, rgba(108,99,255,0.2), rgba(108,99,255,0.05)); color:var(--primary-light);">
                         <i class="fas fa-sign-in-alt"></i>
                     </div>
                     <div class="profile-stat-number" style="color:var(--primary-light);">
@@ -292,7 +307,8 @@
 
                 <!-- Member Since (days) -->
                 <div class="profile-stat-card">
-                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(0,196,140,0.2), rgba(0,196,140,0.05)); color:var(--success);">
+                    <div class="profile-stat-icon"
+                        style="background: linear-gradient(135deg, rgba(0,196,140,0.2), rgba(0,196,140,0.05)); color:var(--success);">
                         <i class="fas fa-calendar-check"></i>
                     </div>
                     <div class="profile-stat-number" style="color:var(--success);">
@@ -304,7 +320,8 @@
                 <!-- Tickets / Papers -->
                 {% if user.is_staff %}
                 <div class="profile-stat-card">
-                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(255,184,0,0.2), rgba(255,184,0,0.05)); color:var(--warning);">
+                    <div class="profile-stat-icon"
+                        style="background: linear-gradient(135deg, rgba(255,184,0,0.2), rgba(255,184,0,0.05)); color:var(--warning);">
                         <i class="fas fa-file-upload"></i>
                     </div>
                     <div class="profile-stat-number" style="color:var(--warning);">{{ user.paper_set.count }}</div>
@@ -312,7 +329,8 @@
                 </div>
                 {% else %}
                 <div class="profile-stat-card">
-                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(255,101,132,0.2), rgba(255,101,132,0.05)); color:var(--accent);">
+                    <div class="profile-stat-icon"
+                        style="background: linear-gradient(135deg, rgba(255,101,132,0.2), rgba(255,101,132,0.05)); color:var(--accent);">
                         <i class="fas fa-ticket"></i>
                     </div>
                     <div class="profile-stat-number" style="color:var(--accent);">{{ user.tickets.count }}</div>
@@ -322,14 +340,15 @@
 
                 <!-- Last Active -->
                 <div class="profile-stat-card">
-                    <div class="profile-stat-icon" style="background: linear-gradient(135deg, rgba(0,180,216,0.2), rgba(0,180,216,0.05)); color:#00b4d8;">
+                    <div class="profile-stat-icon"
+                        style="background: linear-gradient(135deg, rgba(0,180,216,0.2), rgba(0,180,216,0.05)); color:#00b4d8;">
                         <i class="fas fa-eye"></i>
                     </div>
                     <div class="profile-stat-number" style="color:#00b4d8; font-size:1.1rem; padding-top:6px;">
                         {% if session_info.last_seen %}
-                            {{ session_info.last_seen|timesince|truncatechars:14 }}
+                        {{ session_info.last_seen|timesince|truncatechars:14 }}
                         {% else %}
-                            —
+                        —
                         {% endif %}
                     </div>
                     <div class="profile-stat-label">Last Active</div>
@@ -341,10 +360,12 @@
 
                 <!-- Account Info -->
                 <div class="card glass" style="padding: 1.75rem;">
-                    <p class="profile-section-title"><i class="fas fa-user" style="margin-right:6px;"></i>Account Info</p>
+                    <p class="profile-section-title"><i class="fas fa-user" style="margin-right:6px;"></i>Account Info
+                    </p>
 
                     <div class="profile-info-row">
-                        <div class="profile-info-icon" style="background:rgba(108,99,255,0.12); color:var(--primary-light);">
+                        <div class="profile-info-icon"
+                            style="background:rgba(108,99,255,0.12); color:var(--primary-light);">
                             <i class="fas fa-at"></i>
                         </div>
                         <div class="profile-info-content">
@@ -390,11 +411,13 @@
 
                 <!-- Session Info -->
                 <div class="card glass" style="padding: 1.75rem;">
-                    <p class="profile-section-title"><i class="fas fa-shield-alt" style="margin-right:6px;"></i>Session Info</p>
+                    <p class="profile-section-title"><i class="fas fa-shield-alt" style="margin-right:6px;"></i>Session
+                        Info</p>
 
                     {% if session_info %}
                     <div class="profile-info-row">
-                        <div class="profile-info-icon" style="background:rgba(108,99,255,0.12); color:var(--primary-light);">
+                        <div class="profile-info-icon"
+                            style="background:rgba(108,99,255,0.12); color:var(--primary-light);">
                             <i class="fas fa-sign-in-alt"></i>
                         </div>
                         <div class="profile-info-content">
@@ -427,7 +450,8 @@
 
                     {% else %}
                     <div style="text-align:center; padding: 2rem 0; color:var(--text-muted);">
-                        <i class="fas fa-clock" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>
+                        <i class="fas fa-clock"
+                            style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>
                         <p style="font-size:0.9rem;">No session data yet.</p>
                     </div>
                     {% endif %}
@@ -436,12 +460,14 @@
                     <div style="margin-top: 1.5rem;">
                         <div class="logout-grid">
                             <a href="{% url 'logout' %}" class="btn btn-danger"
-                                style="text-decoration:none; text-align:center; padding:10px;" data-umami-event="profile.logout">
+                                style="text-decoration:none; text-align:center; padding:10px;"
+                                data-umami-event="profile.logout">
                                 <i class="fas fa-sign-out-alt"></i> Logout
                             </a>
                             <a href="{% url 'logout_all_devices' %}" class="btn"
                                 style="text-decoration:none; text-align:center; padding:10px; background:transparent; border:1px solid var(--danger); color:var(--danger);"
-                                onclick="return confirm('This will log you out from ALL devices. Continue?');" data-umami-event="profile.logout_all">
+                                onclick="return confirm('This will log you out from ALL devices. Continue?');"
+                                data-umami-event="profile.logout_all">
                                 <i class="fas fa-power-off"></i> All Devices
                             </a>
                         </div>
