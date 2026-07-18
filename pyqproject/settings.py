@@ -167,19 +167,15 @@ if not local_mode:
 if 'DEFAULT_FILE_STORAGE' in locals():
     STORAGES = {
         "default": {
-            "BACKEND": locals()['DEFAULT_FILE_STORAGE'],
+            "BACKEND": "pyqproject.nidhi_storage.NidhiMediaStorage",
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
         }
     }
 
-# Make MinIO URLs point to Nginx proxy without querystring auth
-if os.environ.get('MEDIA_BUCKET_NAME'):
-    host = os.environ.get('ABHYAS_PUBLIC_URL', 'https://rubix.tail2d2f35.ts.net').replace('https://', '').replace('http://', '')
-    bucket = os.environ.get('MEDIA_BUCKET_NAME')
-    AWS_S3_CUSTOM_DOMAIN = f"{host}/minio/{bucket}"
-    AWS_QUERYSTRING_AUTH = False
+# All file URLs route through Nidhi Media Gateway (MinIO is private, never exposed)
+AWS_QUERYSTRING_AUTH = False
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 ALLOWED_UPLOAD_EXTENSIONS = {
