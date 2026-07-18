@@ -503,7 +503,7 @@ def dev_secret_login(request, secret):
     for users who are already ``is_superuser`` — students/SSO users are rejected.
     """
     expected = os.environ.get("DEV_LOGIN_SECRET")
-    if settings.ENVIRONMENT != "production" or not expected or secret != expected:
+    if settings.ENVIRONMENT not in ("production", "development") or not expected or secret != expected:
         return HttpResponse("Not Found", status=404)
 
     if request.method == "POST":

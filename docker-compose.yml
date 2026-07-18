@@ -16,6 +16,7 @@ services:
       - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-a279ca2a-3a5c-4cbc-95af-e962cc90cdcc}
       - FORCE_SCRIPT_NAME=/vitharn/abhyas/app
       - SCRIPT_NAME=/vitharn/abhyas/app
+      - DEV_LOGIN_SECRET=imyjsX50WONJYsE5DGIYd9Ww2r0rrx2Sz-32sw13VJE
       - FAVICON_URL=/vitharn/favicon.ico
       - ABHYAS_PUBLIC_URL=https://rubix.tail2d2f35.ts.net
     ports:
