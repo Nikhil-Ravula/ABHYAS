@@ -1,0 +1,151 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contributor Tutorial - ABHYAS</title>
+    <link rel="icon" href="{{ FAVICON_URL }}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=5">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>(function(){const t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+    <style>
+        .tutorial-hero { text-align:center; padding: 40px 0 20px; }
+        .tutorial-hero .hero-icon {
+            width:72px; height:72px; border-radius:20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display:flex; align-items:center; justify-content:center;
+            font-size:2rem; margin: 0 auto 18px; box-shadow: 0 8px 32px rgba(108,99,255,0.35);
+        }
+        .tutorial-hero h1 { font-size:1.8rem; font-weight:800; margin-bottom:6px; }
+        .tutorial-hero p  { color:var(--text-muted); font-size:0.95rem; }
+
+        .step-card {
+            background: var(--bg-glass); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 24px; margin-bottom: 24px;
+            box-shadow: var(--shadow); position: relative; transition: var(--transition);
+        }
+        .step-card:hover { border-color: var(--border-light); transform: translateY(-2px); }
+        .step-num {
+            position: absolute; top: -12px; left: 24px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff; font-weight: 800; font-size: 0.85rem;
+            padding: 4px 14px; border-radius: 50px; text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(108,99,255,0.3);
+        }
+        .step-title {
+            font-family: var(--font-heading); font-size: 1.15rem;
+            font-weight: 700; color: var(--text-primary);
+            margin: 8px 0 14px; display: flex; align-items: center; gap: 10px;
+        }
+        .step-list {
+            list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 10px;
+        }
+        .step-list li {
+            position: relative; padding-left: 24px; font-size: 0.9rem;
+            line-height: 1.6; color: var(--text-secondary);
+        }
+        .step-list li::before {
+            content: "\f058"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+            position: absolute; left: 0; top: 2px; color: var(--success);
+            font-size: 0.95rem;
+        }
+        .attribution-note {
+            background: rgba(108,99,255,0.06); border-left: 3px solid var(--primary);
+            border-radius: var(--radius-xs); padding: 12px 16px; margin-top: 14px;
+            font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+        }
+        .attribution-note strong { color: var(--primary-light); }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="container">
+        <a href="{% url 'links' %}" class="nav-brand">
+            <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+            <span>ABHYAS</span>
+        </a>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+        <div class="hamburger" onclick="this.classList.toggle('active');document.getElementById('navLinks').classList.toggle('active');">
+            <span></span><span></span><span></span>
+        </div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="{% url 'links' %}" data-umami-event="nav.links"><i class="fas fa-link"></i> Links</a></li>
+            <li><a href="{% url 'upload_pyq' %}"><i class="fas fa-file-alt"></i> Upload PYQ</a></li>
+            <li><a href="{% url 'upload_iq' %}"><i class="fas fa-star"></i> Upload IQ</a></li>
+            <li><a href="{% url 'logout' %}" style="color:var(--danger);">Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <div class="container" style="max-width: 720px;">
+
+        <div class="tutorial-hero animate-up">
+            <div class="hero-icon"><i class="fas fa-book-open"></i></div>
+            <h1>Contributor Guide</h1>
+            <p>Learn how to share study resources with the ABHYAS community</p>
+        </div>
+
+        <!-- Section: Uploading PYQs -->
+        <div class="step-card animate-up-delay">
+            <span class="step-num">Guide 1</span>
+            <h2 class="step-title">
+                <i class="fas fa-file-alt" style="color: var(--success);"></i>
+                How to Upload PYQs (Previous Year Papers)
+            </h2>
+            <ul class="step-list">
+                <li>Go to the <strong>Upload PYQ</strong> page from your Home dashboard.</li>
+                <li>Enter the <strong>Subject</strong> name (e.g. <i>Web Technologies</i>) and select the exam <strong>Year</strong>.</li>
+                <li>Select the academic <strong>Regulation</strong> (e.g. <i>R22</i>) and the <strong>Exam Type</strong> (Regular, Supply, or Mid).</li>
+                <li>Select the relevant engineering <strong>Branches</strong> and add relevant <strong>Hashtags</strong> (separated by commas) to help students search easily.</li>
+                <li>Attach the question paper file (PDF, Doc, or Image format).</li>
+                <li>
+                    <strong>Attribution Option:</strong> Choose if you want to display your name on the paper card.
+                    <div class="attribution-note">
+                        <i class="fas fa-info-circle"></i>
+                        If you check <strong>"Click this to show that the above PYQ is uploaded by you"</strong>, other users will see your username/name. Otherwise, the uploader defaults to <strong>Nikhil Ravula</strong> (Site Owner).
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Section: Uploading IQs -->
+        <div class="step-card animate-up-delay">
+            <span class="step-num">Guide 2</span>
+            <h2 class="step-title">
+                <i class="fas fa-star" style="color: #F59E0B;"></i>
+                How to Upload IQs (Important Questions)
+            </h2>
+            <ul class="step-list">
+                <li>Go to the <strong>Upload IQ</strong> page from your Home dashboard.</li>
+                <li>Select the <strong>Subject</strong>, <strong>Regulation</strong>, <strong>Unit</strong> (1 to 5), and <strong>Question Type</strong> (Short Answer or Long Answer).</li>
+                <li>You will see 10 question fields by default. Fill in the question texts.</li>
+                <li>If a question has an image or diagram, you can optionally attach an image or PDF to individual questions. You can also submit a question with just a file/image and no text!</li>
+                <li>Need to add more? Click the <strong>Add More Questions</strong> button to insert additional slots.</li>
+            </ul>
+        </div>
+
+        <!-- Section: Approval Process -->
+        <div class="step-card animate-up-delay" style="border-left: 3px solid var(--secondary);">
+            <span class="step-num">Guide 3</span>
+            <h2 class="step-title">
+                <i class="fas fa-circle-check" style="color: var(--secondary);"></i>
+                Review & Approval Lifecycle
+            </h2>
+            <ul class="step-list">
+                <li>Once submitted, your resources will go into a <strong>Pending review</strong> state.</li>
+                <li>Admins will review the content to verify accuracy, quality, and check for duplicates.</li>
+                <li>If accepted, the paper or important questions will go live on the platform instantly, attributed to your chosen name preference!</li>
+            </ul>
+            <div style="text-align: center; margin-top: 24px;">
+                <a href="{% url 'links' %}" class="btn btn-primary" style="width: 100%;"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="{% static 'js/theme.js' %}"></script>
+</body>
+</html>

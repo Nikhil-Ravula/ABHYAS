@@ -28,6 +28,8 @@ class Paper(models.Model):
     # Metadata
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    # Display name shown to students (empty = use uploaded_by.username)
+    display_name = models.CharField(max_length=150, blank=True, default='')
 
     def __str__(self):
         return f"{self.subject} ({self.year})"
@@ -200,3 +202,82 @@ class ActivityLog(models.Model):
 
     def __str__(self):
         return f"{self.user.username} — {self.event_type} — {self.created_at:%d %b %Y %H:%M}"
+
+
+# ── User Submission Models ───────────────────────────────────────────────
+
+class UserPYQSubmission(models.Model):
+    """PYQ submitted by a student, pending admin approval."""
+    STATUS_CHOICES = [
+        ('pending',  'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+    submitter        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pyq_submissions')
+    subject          = models.CharField(max_length=200)
+    year             = models.IntegerField()
+    paper_type       = models.CharField(max_length=10)
+    regulation       = models.CharField(max_length=5, choices=REGULATION_CHOICES, default='R22')
+    branch           = models.CharField(max_length=100, blank=True)
+    hashtags         = models.CharField(max_length=1000, blank=True)
+    file             = models.FileField(upload_to='pending_pyq/')
+    original_filename= models.CharField(max_length=255)
+    show_name        = models.BooleanField(default=False)
+    display_name     = models.CharField(max_length=150, default='Nikhil Ravula')
+    status           = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    submitted_at     = models.DateTimeField(auto_now_add=True)
+    reviewed_at      = models.DateTimeField(null=True, blank=True)
+    reviewed_by      = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewed_pyq_submissions'
+    )
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.subject} ({self.year}) by {self.submitter.username} [{self.status}]"
+
+
+class UserIQSubmission(models.Model):
+    """Batch of IQ questions submitted by a student, pending admin approval."""
+    STATUS_CHOICES = [
+        ('pending',  'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+    submitter     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='iq_submissions')
+    subject       = models.CharField(max_length=200)
+    hashtags      = models.CharField(max_length=255, blank=True)
+    branch        = models.CharField(max_length=100, blank=True)
+    regulation    = models.CharField(max_length=5, choices=REGULATION_CHOICES, default='R22')
+    unit          = models.IntegerField()
+    question_type = models.CharField(max_length=10)
+    status        = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    submitted_at  = models.DateTimeField(auto_now_add=True)
+    reviewed_at   = models.DateTimeField(null=True, blank=True)
+    reviewed_by   = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewed_iq_submissions'
+    )
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.subject} Unit {self.unit} ({self.question_type}) by {self.submitter.username} [{self.status}]"
+
+
+class UserIQSubmissionQuestion(models.Model):
+    """Individual question within a UserIQSubmission."""
+    submission        = models.ForeignKey(UserIQSubmission, on_delete=models.CASCADE, related_name='questions')
+    question_number   = models.IntegerField()
+    question_text     = models.TextField(blank=True)
+    file              = models.FileField(upload_to='pending_iq/', blank=True, null=True)
+    original_filename = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['question_number']
+
+    def __str__(self):
+        return f"Q{self.question_number} → Submission #{self.submission.id}"

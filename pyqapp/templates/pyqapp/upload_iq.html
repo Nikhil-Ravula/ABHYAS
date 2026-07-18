@@ -1,0 +1,254 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload IQ - ABHYAS</title>
+    <link rel="icon" href="{{ FAVICON_URL }}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=6">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>(function(){const t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+    <style>
+        .upload-hero { text-align:center; padding:40px 0 20px; }
+        .upload-hero .hero-icon {
+            width:72px; height:72px; border-radius:20px;
+            background: linear-gradient(135deg, #F59E0B, #EF4444);
+            display:flex; align-items:center; justify-content:center;
+            font-size:2rem; margin:0 auto 18px; box-shadow:0 8px 32px rgba(245,158,11,0.3);
+        }
+        .upload-hero h1 { font-size:1.8rem; font-weight:800; margin-bottom:6px; }
+        .upload-hero p  { color:var(--text-muted); font-size:0.95rem; }
+
+        .q-row {
+            background: var(--bg-glass);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin-bottom: 16px;
+            position: relative;
+            transition: var(--transition);
+            box-shadow: 6px 6px 12px #0f0f1f, -6px -6px 12px #252540;
+            border-left: 3px solid var(--accent);
+        }
+        html[data-theme="light"] .q-row {
+            box-shadow: 6px 6px 12px #c9cfd6, -6px -6px 12px #ffffff;
+            border: none;
+            border-left: 3px solid var(--primary);
+        }
+        .q-row-header {
+            display:flex; align-items:center; justify-content:space-between;
+            margin-bottom:14px; font-weight:700; font-size:0.9rem;
+            color:var(--accent);
+        }
+        .remove-q-btn {
+            background:none; border:none; color:var(--danger);
+            cursor:pointer; font-size:0.85rem; padding:4px 8px;
+            border-radius:var(--radius-xs); transition:var(--transition);
+        }
+        .remove-q-btn:hover { background:rgba(255,101,132,0.1); }
+        .file-upload-sm {
+            position:relative; border:1px dashed var(--border);
+            border-radius:var(--radius-xs); padding:16px; text-align:center;
+            transition:var(--transition); cursor:pointer; margin-top:8px;
+        }
+        .file-upload-sm:hover { border-color:var(--primary); }
+        .file-upload-sm input[type="file"]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+        .file-upload-sm small { color:var(--text-muted); font-size:0.8rem; }
+        .admin-notice {
+            background:rgba(255,101,132,0.10); border:1px solid rgba(255,101,132,0.3);
+            border-radius:var(--radius-sm); padding:14px 18px;
+            color:var(--accent); font-size:0.9rem; font-weight:600;
+            display:flex; align-items:center; gap:10px; margin-bottom:20px;
+        }
+        .add-q-btn {
+            width:100%; background:none; border:1px dashed var(--border);
+            color:var(--text-secondary); padding:12px; border-radius:var(--radius-sm);
+            cursor:pointer; font-size:0.88rem; font-family:var(--font-main);
+            transition:var(--transition); margin-bottom:20px;
+        }
+        .add-q-btn:hover { border-color:var(--primary); color:var(--primary-light); background:rgba(108,99,255,0.05); }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="container">
+        <a href="{% url 'links' %}" class="nav-brand">
+            <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+            <span>ABHYAS</span>
+        </a>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+        <div class="hamburger" onclick="this.classList.toggle('active');document.getElementById('navLinks').classList.toggle('active');">
+            <span></span><span></span><span></span>
+        </div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="{% url 'links' %}" data-umami-event="nav.links"><i class="fas fa-link"></i> Links</a></li>
+            <li><a href="{% url 'tutorial' %}"><i class="fas fa-book-open"></i> Tutorial</a></li>
+            <li><a href="{% url 'logout' %}" style="color:var(--danger);">Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <div class="container" style="max-width:720px;">
+
+        <div class="upload-hero animate-up">
+            <div class="hero-icon"><i class="fas fa-star"></i></div>
+            <h1>Upload Important Questions</h1>
+            <p>Submit unit-wise important questions for admin review</p>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="toast toast-{{ message.tags }}" style="position:static;margin-bottom:1rem;width:100%;">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if user.is_staff or user.is_superuser %}
+        <div class="admin-notice animate-up">
+            <i class="fas fa-shield-halved"></i>
+            You are viewing as Admin/Staff. You <strong>&nbsp;cannot submit&nbsp;</strong> via this page.
+            Use the <a href="{% url 'admin_log' %}" style="color:var(--accent);text-decoration:underline;">Admin Dashboard</a> instead.
+        </div>
+        {% endif %}
+
+        <div class="card animate-up-delay">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-star" style="color:var(--accent)"></i> Question Details</h3>
+            </div>
+            <form method="POST" enctype="multipart/form-data" id="iq-upload-form">
+                {% csrf_token %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Subject <span style="color:var(--danger)">*</span></label>
+                        <input type="text" name="subject" class="form-control" placeholder="e.g. Java Programming" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Regulation <span style="color:var(--danger)">*</span></label>
+                        <select name="regulation" class="form-control" required>
+                            <option value="R02">R02</option><option value="R05">R05</option>
+                            <option value="R07">R07</option><option value="R09">R09</option>
+                            <option value="R13">R13</option><option value="R15">R15</option>
+                            <option value="R16">R16</option><option value="R18">R18</option>
+                            <option value="R22" selected>R22</option><option value="R25">R25</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Unit (1–5) <span style="color:var(--danger)">*</span></label>
+                        <input type="number" name="unit" class="form-control" min="1" max="5" placeholder="e.g. 2" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Question Type <span style="color:var(--danger)">*</span></label>
+                        <select name="type" class="form-control" required>
+                            <option value="short">Short Answer</option>
+                            <option value="long">Long Answer</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Branch</label>
+                    <div class="branch-checkboxes">
+                        {% for b in branches %}
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="branch" value="{{ b }}"> {{ b }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-hashtag" style="color:var(--accent)"></i> Hashtags</label>
+                    <input type="text" name="hashtags" class="form-control" placeholder="e.g. java, oopj  (comma separated)">
+                </div>
+
+                <hr style="border-color:var(--border);margin:20px 0;">
+
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <span style="font-weight:700;color:var(--accent);"><i class="fas fa-list-ol"></i> Questions</span>
+                    <small style="color:var(--text-muted);">Add at least one question</small>
+                </div>
+
+                <div id="q-rows"></div>
+
+                <button type="button" class="add-q-btn" onclick="addQuestion()"
+                    {% if user.is_staff or user.is_superuser %}disabled{% endif %}>
+                    <i class="fas fa-plus"></i> Add More Questions
+                </button>
+
+                <button type="submit" class="btn btn-success" style="width:100%;"
+                    {% if user.is_staff or user.is_superuser %}
+                    onclick="event.preventDefault();showAdminError();"
+                    {% endif %}>
+                    <i class="fas fa-paper-plane"></i> Submit for Review
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/theme.js' %}"></script>
+<script>
+let qCount = 0;
+
+function addQuestion() {
+    qCount++;
+    const idx = qCount;
+    const container = document.getElementById('q-rows');
+    const div = document.createElement('div');
+    div.className = 'q-row';
+    div.id = `q-row-${idx}`;
+    div.innerHTML = `
+        <div class="q-row-header">
+            <span><i class="fas fa-circle-question"></i> Question ${idx}</span>
+            ${idx > 1 ? `<button type="button" class="remove-q-btn" onclick="removeQuestion(${idx})"><i class="fas fa-times"></i> Remove</button>` : ''}
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+            <textarea name="question_${idx}" class="form-control" rows="3"
+                placeholder="Enter question text (leave blank if uploading as image/file)"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:0.82rem;color:var(--text-muted);">Attach image/file (optional)</label>
+            <div class="file-upload-sm">
+                <input type="file" name="file_${idx}" onchange="showQFile(this, ${idx})">
+                <small><i class="fas fa-paperclip"></i> Click to attach image or PDF</small>
+            </div>
+            <small id="qfile-name-${idx}" style="display:block;margin-top:6px;color:var(--success);font-weight:500;"></small>
+        </div>`;
+    container.appendChild(div);
+}
+
+function removeQuestion(idx) {
+    const el = document.getElementById(`q-row-${idx}`);
+    if (el) el.remove();
+}
+
+function showQFile(input, idx) {
+    const el = document.getElementById(`qfile-name-${idx}`);
+    if (input.files && input.files[0]) el.textContent = '✓ ' + input.files[0].name;
+}
+
+function showAdminError() {
+    let existing = document.getElementById('admin-err-toast');
+    if (existing) return;
+    const toast = document.createElement('div');
+    toast.id = 'admin-err-toast';
+    toast.className = 'toast toast-error';
+    toast.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;min-width:320px;';
+    toast.textContent = 'Admins/Staff cannot submit via this page.';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+// Initialise with 10 question rows
+for (let i = 0; i < 10; i++) {
+    addQuestion();
+}
+</script>
+</body>
+</html>

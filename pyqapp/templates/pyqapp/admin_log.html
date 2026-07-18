@@ -527,6 +527,12 @@
                     Stats</button>
                 <button class="tab-btn" onclick="switchTab('announcements')" data-umami-event="admin.tab.announcements"><i class="fas fa-bullhorn"></i> Announcements</button>
                 <button class="tab-btn" onclick="switchTab('downloads')" data-umami-event="admin.tab.downloads"><i class="fas fa-download"></i> Downloads</button>
+                <a href="{% url 'accept' %}" class="tab-btn" style="text-decoration:none;" data-umami-event="admin.tab.accept">
+                    <i class="fas fa-inbox"></i> Pending Submissions
+                </a>
+                <a href="{% url 'submission_details' %}" class="tab-btn" style="text-decoration:none;" data-umami-event="admin.tab.history">
+                    <i class="fas fa-history"></i> Sub. History
+                </a>
             </div>
 
             <!-- ============ TAB 1: Staff List ============ -->

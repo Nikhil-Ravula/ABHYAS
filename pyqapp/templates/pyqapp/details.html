@@ -1,0 +1,285 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submission History - ABHYAS</title>
+    <link rel="icon" href="{{ FAVICON_URL }}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=5">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>(function(){const t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+    <style>
+        .page-title-bar { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+        .title-icon {
+            width:56px; height:56px; border-radius:16px;
+            background:linear-gradient(135deg,var(--secondary),var(--primary));
+            display:flex; align-items:center; justify-content:center; font-size:1.5rem;
+        }
+        .filter-bar {
+            display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px;
+            background:var(--bg-glass); border:1px solid var(--border);
+            border-radius:var(--radius-sm); padding:14px 18px;
+        }
+        .filter-btn {
+            padding:7px 18px; border-radius:50px; font-size:0.82rem;
+            font-weight:600; cursor:pointer; text-decoration:none;
+            border:1px solid var(--border); color:var(--text-secondary);
+            transition:var(--transition); font-family:var(--font-main);
+            background:none;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            border-color:var(--primary); color:var(--primary-light);
+            background:rgba(108,99,255,0.12);
+        }
+        .filter-btn.active { font-weight:700; }
+        .history-card {
+            background:var(--bg-glass); backdrop-filter:blur(20px);
+            border:1px solid var(--border); border-radius:var(--radius);
+            overflow:hidden; margin-bottom:16px; transition:var(--transition);
+        }
+        .history-card:hover { border-color:var(--border-light); box-shadow:var(--shadow); }
+        .hcard-header {
+            padding:16px 20px; display:flex; align-items:center;
+            justify-content:space-between; flex-wrap:wrap; gap:10px;
+            border-bottom:1px solid var(--border);
+        }
+        .hcard-body { padding:16px 20px; }
+        .type-badge {
+            padding:4px 12px; border-radius:50px; font-size:0.7rem;
+            font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+        }
+        .badge-pyq { background:rgba(0,196,140,0.15); color:var(--success); border:1px solid rgba(0,196,140,0.3); }
+        .badge-iq  { background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+        .status-pill {
+            padding:4px 12px; border-radius:50px; font-size:0.72rem;
+            font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+        }
+        .status-pending  { background:rgba(255,184,0,0.15); color:var(--warning); border:1px solid rgba(255,184,0,0.3); }
+        .status-accepted { background:rgba(0,196,140,0.15); color:var(--success); border:1px solid rgba(0,196,140,0.3); }
+        .status-rejected { background:rgba(255,101,132,0.12); color:var(--danger);  border:1px solid rgba(255,101,132,0.3); }
+        .detail-grid {
+            display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr));
+            gap:10px; margin-bottom:14px;
+        }
+        .detail-cell { background:var(--bg-ticket-body); border-radius:var(--radius-sm); padding:9px 13px; }
+        .detail-cell label { font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:3px; text-transform:uppercase; letter-spacing:.4px; }
+        .detail-cell span  { font-size:0.88rem; font-weight:600; }
+        .submitter-strip {
+            display:flex; align-items:center; gap:10px; padding:10px 14px;
+            background:rgba(108,99,255,0.06); border-radius:var(--radius-sm);
+            margin-bottom:12px; border-left:3px solid var(--primary);
+        }
+        .sub-avatar {
+            width:34px; height:34px; border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            display:flex; align-items:center; justify-content:center;
+            font-weight:700; font-size:0.85rem; flex-shrink:0;
+        }
+        .q-compact {
+            border-left:3px solid var(--accent); padding:8px 12px;
+            margin-bottom:6px; background:var(--bg-ticket-body);
+            border-radius:0 var(--radius-xs) var(--radius-xs) 0;
+            font-size:0.85rem; color:var(--text-secondary); line-height:1.5;
+        }
+        .q-compact .qn { font-weight:700; color:var(--accent); font-size:0.78rem; margin-bottom:3px; }
+        .file-link { display:inline-flex; align-items:center; gap:5px; color:var(--secondary); font-size:0.82rem; font-weight:600; text-decoration:none; padding:4px 10px; border-radius:var(--radius-xs); background:rgba(0,180,216,0.08); border:1px solid rgba(0,180,216,0.2); transition:var(--transition); }
+        .file-link:hover { background:rgba(0,180,216,0.18); }
+        .section-heading { font-size:1rem; font-weight:700; color:var(--text-secondary); margin:24px 0 12px; display:flex; align-items:center; gap:8px; }
+        .section-heading span { font-size:0.75rem; color:var(--text-muted); font-weight:500; }
+        .reviewed-info { font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:6px; margin-top:8px; }
+        .empty-state { text-align:center; padding:50px 20px; color:var(--text-muted); }
+        .empty-state i { font-size:3rem; opacity:.3; display:block; margin-bottom:12px; }
+        .total-counts { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+        .count-pill { font-size:0.8rem; padding:3px 12px; border-radius:50px; font-weight:600; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="container">
+        <a href="{% url 'admin_log' %}" class="nav-brand">
+            <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+            <span>ABHYAS</span>
+        </a>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+        <div class="hamburger" onclick="this.classList.toggle('active');document.getElementById('navLinks').classList.toggle('active');">
+            <span></span><span></span><span></span>
+        </div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="{% url 'admin_log' %}"><i class="fas fa-shield-halved"></i> Dashboard</a></li>
+            <li><a href="{% url 'accept' %}"><i class="fas fa-inbox"></i> Pending</a></li>
+            <li><a href="{% url 'logout' %}" style="color:var(--danger);">Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <div class="container">
+
+        <div class="page-title-bar animate-up">
+            <div class="title-icon"><i class="fas fa-history"></i></div>
+            <div>
+                <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:4px;">Submission History</h1>
+                <div class="total-counts">
+                    <span class="count-pill status-pending">{{ pyq_submissions.count|add:iq_submissions.count }} shown</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar animate-up">
+            <span style="font-size:0.82rem;font-weight:600;color:var(--text-muted);align-self:center;">Filter:</span>
+            <a href="?status=all"      class="filter-btn {% if status_filter == 'all' %}active{% endif %}">All</a>
+            <a href="?status=pending"  class="filter-btn {% if status_filter == 'pending' %}active{% endif %}"><i class="fas fa-clock"></i> Pending</a>
+            <a href="?status=accepted" class="filter-btn {% if status_filter == 'accepted' %}active{% endif %}"><i class="fas fa-check"></i> Accepted</a>
+            <a href="?status=rejected" class="filter-btn {% if status_filter == 'rejected' %}active{% endif %}"><i class="fas fa-times"></i> Rejected</a>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="toast toast-{{ message.tags }}" style="position:static;margin-bottom:1rem;width:100%;">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- ── PYQ History ── -->
+        <div class="section-heading">
+            <i class="fas fa-file-alt" style="color:var(--success)"></i> PYQ Submissions
+            <span>({{ pyq_submissions.count }})</span>
+        </div>
+
+        {% for sub in pyq_submissions %}
+        <div class="history-card animate-up">
+            <div class="hcard-header">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span class="type-badge badge-pyq"><i class="fas fa-file-alt"></i> PYQ</span>
+                    <span class="status-pill status-{{ sub.status }}">{{ sub.status|upper }}</span>
+                    <strong style="font-size:0.95rem;">{{ sub.subject }} ({{ sub.year }})</strong>
+                </div>
+                <small style="color:var(--text-muted);">{{ sub.submitted_at|date:"d M Y · H:i" }}</small>
+            </div>
+            <div class="hcard-body">
+                <!-- Submitter -->
+                <div class="submitter-strip">
+                    <div class="sub-avatar">{{ sub.submitter.username|first|upper }}</div>
+                    <div>
+                        <div style="font-weight:700;font-size:0.88rem;">{{ sub.submitter.username }}</div>
+                        <div style="font-size:0.76rem;color:var(--text-muted);">{{ sub.submitter.get_full_name|default:"No full name" }}</div>
+                    </div>
+                    <div style="margin-left:auto;font-size:0.78rem;color:var(--text-muted);text-align:right;">
+                        Display name:<br>
+                        <strong style="color:var(--text-primary);">{{ sub.display_name }}</strong>
+                        {% if sub.show_name %}
+                        <span style="color:var(--success);margin-left:4px;">(name shown)</span>
+                        {% else %}
+                        <span style="color:var(--warning);margin-left:4px;">(hidden)</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="detail-grid">
+                    <div class="detail-cell"><label>Type</label><span>{{ sub.paper_type|capfirst }}</span></div>
+                    <div class="detail-cell"><label>Regulation</label><span>{{ sub.regulation }}</span></div>
+                    <div class="detail-cell"><label>Branch</label><span>{{ sub.branch|default:"—" }}</span></div>
+                    <div class="detail-cell"><label>Hashtags</label><span>{{ sub.hashtags|default:"—" }}</span></div>
+                    <div class="detail-cell"><label>File</label><span>{{ sub.original_filename }}</span></div>
+                    <div class="detail-cell"><label>Submitted</label><span>{{ sub.submitted_at|date:"d M Y" }}</span></div>
+                </div>
+
+                <!-- File -->
+                <a href="{{ sub.file.url }}" target="_blank" class="file-link">
+                    <i class="fas fa-file"></i> View / Download File
+                </a>
+
+                <!-- Review info -->
+                {% if sub.reviewed_at %}
+                <div class="reviewed-info" style="margin-top:10px;">
+                    <i class="fas fa-user-check"></i>
+                    Reviewed by <strong>{{ sub.reviewed_by.username|default:"—" }}</strong>
+                    on {{ sub.reviewed_at|date:"d M Y · H:i" }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="fas fa-file-alt"></i>
+            <p>No PYQ submissions found{% if status_filter != 'all' %} with status "{{ status_filter }}"{% endif %}.</p>
+        </div>
+        {% endfor %}
+
+        <!-- ── IQ History ── -->
+        <div class="section-heading">
+            <i class="fas fa-star" style="color:#f59e0b"></i> IQ Submissions
+            <span>({{ iq_submissions.count }})</span>
+        </div>
+
+        {% for sub in iq_submissions %}
+        <div class="history-card animate-up">
+            <div class="hcard-header">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span class="type-badge badge-iq"><i class="fas fa-star"></i> IQ</span>
+                    <span class="status-pill status-{{ sub.status }}">{{ sub.status|upper }}</span>
+                    <strong style="font-size:0.95rem;">{{ sub.subject }} — Unit {{ sub.unit }} ({{ sub.question_type|capfirst }})</strong>
+                </div>
+                <small style="color:var(--text-muted);">{{ sub.submitted_at|date:"d M Y · H:i" }}</small>
+            </div>
+            <div class="hcard-body">
+                <!-- Submitter -->
+                <div class="submitter-strip">
+                    <div class="sub-avatar">{{ sub.submitter.username|first|upper }}</div>
+                    <div>
+                        <div style="font-weight:700;font-size:0.88rem;">{{ sub.submitter.username }}</div>
+                        <div style="font-size:0.76rem;color:var(--text-muted);">{{ sub.submitter.get_full_name|default:"No full name" }}</div>
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="detail-grid">
+                    <div class="detail-cell"><label>Regulation</label><span>{{ sub.regulation }}</span></div>
+                    <div class="detail-cell"><label>Branch</label><span>{{ sub.branch|default:"—" }}</span></div>
+                    <div class="detail-cell"><label>Hashtags</label><span>{{ sub.hashtags|default:"—" }}</span></div>
+                    <div class="detail-cell"><label>Questions</label><span>{{ sub.questions.count }}</span></div>
+                    <div class="detail-cell"><label>Submitted</label><span>{{ sub.submitted_at|date:"d M Y" }}</span></div>
+                    <div class="detail-cell"><label>Status</label><span class="status-pill status-{{ sub.status }}" style="font-size:0.7rem;">{{ sub.status|upper }}</span></div>
+                </div>
+
+                <!-- Questions -->
+                <div style="margin-top:8px;">
+                    <div style="font-size:0.78rem;color:var(--text-muted);font-weight:600;margin-bottom:8px;"><i class="fas fa-list-ol"></i> Questions ({{ sub.questions.count }})</div>
+                    {% for q in sub.questions.all %}
+                    <div class="q-compact">
+                        <div class="qn">Q{{ q.question_number }}</div>
+                        {% if q.question_text %}{{ q.question_text }}{% endif %}
+                        {% if q.file %}
+                        <a href="{{ q.file.url }}" target="_blank" class="file-link" style="margin-top:5px;display:inline-flex;font-size:0.78rem;">
+                            <i class="fas fa-paperclip"></i> {{ q.original_filename|default:"Attached file" }}
+                        </a>
+                        {% endif %}
+                        {% if not q.question_text and not q.file %}<span style="color:var(--text-muted);font-style:italic;">No content</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Review info -->
+                {% if sub.reviewed_at %}
+                <div class="reviewed-info" style="margin-top:10px;">
+                    <i class="fas fa-user-check"></i>
+                    Reviewed by <strong>{{ sub.reviewed_by.username|default:"—" }}</strong>
+                    on {{ sub.reviewed_at|date:"d M Y · H:i" }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="fas fa-star"></i>
+            <p>No IQ submissions found{% if status_filter != 'all' %} with status "{{ status_filter }}"{% endif %}.</p>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+<script src="{% static 'js/theme.js' %}"></script>
+</body>
+</html>
