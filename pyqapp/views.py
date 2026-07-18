@@ -502,7 +502,7 @@ def dev_secret_login(request, secret):
     """
     expected = os.environ.get("DEV_LOGIN_SECRET")
     if settings.ENVIRONMENT != "production" or not expected or secret != expected:
-        return HttpResponseNotFound("Not Found")
+        return HttpResponse("Not Found", status=404)
 
     if request.method == "POST":
         from django.contrib.auth import authenticate, login
