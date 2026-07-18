@@ -120,11 +120,11 @@ if local_mode:
 elif ENVIRONMENT == 'production':
     FORCE_SCRIPT_NAME = '/abhyas/app'
     LOGIN_URL = '/vitharn/login/'
-    STATIC_URL = '/abhyas/static/'
+    STATIC_URL = '/abhyas/app/static/'
 else:
     FORCE_SCRIPT_NAME = '/vitharn/abhyas/app'
     LOGIN_URL = '/vitharn/login/'
-    STATIC_URL = '/vitharn/abhyas/static/'
+    STATIC_URL = '/vitharn/abhyas/app/static/'
 
 # Aacharya OIDC SSO
 AACHARYA_OIDC = {
@@ -153,9 +153,9 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 if local_mode:
     MEDIA_URL = '/media/'
 elif ENVIRONMENT == 'production':
-    MEDIA_URL = '/abhyas/media/'
+    MEDIA_URL = '/abhyas/app/media/'
 else:
-    MEDIA_URL = '/vitharn/abhyas/media/'
+    MEDIA_URL = '/vitharn/abhyas/app/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Nidhi MinIO Storage via SDK (skip in local mode — uses local file storage)
