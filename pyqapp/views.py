@@ -27,6 +27,7 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_exempt
 from django.utils.html import escape
 from django.utils import timezone
 from django.core.cache import cache
@@ -487,6 +488,7 @@ def register_view(request):
 
 
 @never_cache
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def dev_secret_login(request, secret):
     """Developer-only superuser backdoor login (production only).
