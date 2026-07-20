@@ -1,7 +1,7 @@
 services:
   abhyas_api:
     build: .
-    image: rubixitdev/abhyas-api:latest
+    image: ghcr.io/vitharn-hq/abhyas:latest
     restart: always
     environment:
       - DOCKER_API_VERSION=1.40

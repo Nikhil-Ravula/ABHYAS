@@ -1,6 +1,6 @@
 services:
   abhyas_api:
-    image: rubixitdev/abhyas-api:latest
+    image: ghcr.io/vitharn-hq/abhyas:latest
     restart: always
     environment:
       - DOCKER_API_VERSION=1.40
@@ -11,15 +11,3 @@ services:
       - DEBUG=0
     ports:
       - "8003:8000"
-
-  abhyas_watchtower:
-    container_name: abhyas_watchtower
-    image: containrrr/watchtower:latest
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - WATCHTOWER_POLL_INTERVAL=30
-      - WATCHTOWER_CLEANUP=true
-      - DOCKER_API_VERSION=1.40
-    command: abhyas_api

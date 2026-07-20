@@ -1,5 +1,9 @@
 name: Abhyas CI/CD
 
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches: [krishna]
@@ -14,20 +18,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Compute short SHA
+        run: echo "SHORT_SHA=$(echo ${GITHUB_SHA} | cut -c1-7)" >> "$GITHUB_ENV"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io
+          username: x-access-token
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: rubixitdev/abhyas-api:latest
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/vitharn-hq/abhyas:latest
+            ghcr.io/vitharn-hq/abhyas:sha-${{ env.SHORT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # Watchtower on the VPS (abhyas_watchtower in vps-docker-compose.yml)
+      # polls ghcr.io/vitharn-hq/abhyas and auto-pulls + restarts abhyas_api.
