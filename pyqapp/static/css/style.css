@@ -3,42 +3,42 @@
    ======================================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap');
 
-/* ===== CSS Variables ===== */
+/* ===== CSS Variables (Dark Mode — Neumorphic) ===== */
 :root {
-    --primary: #6C63FF;
+    --primary: #7C6EFF;
     --primary-dark: #5A52D5;
-    --primary-light: #8B83FF;
+    --primary-light: #9D95FF;
     --secondary: #00D2FF;
     --accent: #FF6584;
     --success: #00C48C;
     --warning: #FFB800;
     --danger: #FF4757;
-    --bg-dark: #0F0E17;
-    --bg-card: rgba(255, 255, 255, 0.05);
-    --bg-card-hover: rgba(255, 255, 255, 0.1);
-    --bg-glass: rgba(255, 255, 255, 0.08);
-    --text-primary: #FFFFFE;
-    --text-secondary: #A7A9BE;
-    --text-muted: #72758D;
-    --border: rgba(255, 255, 255, 0.1);
-    --border-light: rgba(255, 255, 255, 0.15);
-    --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.4);
-    --radius: 16px;
-    --radius-sm: 10px;
-    --radius-xs: 6px;
+    --bg-dark: #1A1A2E;
+    --bg-card: #1A1A2E;
+    --bg-card-hover: #1E1E35;
+    --bg-glass: #1A1A2E;
+    --text-primary: #E8E6FF;
+    --text-secondary: #9A98B5;
+    --text-muted: #6A6880;
+    --border: rgba(255, 255, 255, 0.06);
+    --border-light: rgba(255, 255, 255, 0.10);
+    --shadow: 8px 8px 16px #0f0f1f, -8px -8px 16px #252540;
+    --shadow-lg: 12px 12px 24px #0d0d1c, -12px -12px 24px #272744;
+    --radius: 20px;
+    --radius-sm: 12px;
+    --radius-xs: 8px;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --font-main: 'Inter', sans-serif;
     --font-heading: 'Poppins', sans-serif;
-    
-    --bg-navbar: rgba(15, 14, 23, 0.8);
-    --bg-modal: #1a1a2e;
-    --bg-checkbox: rgba(255, 255, 255, 0.06);
-    --bg-checkbox-hover: rgba(108, 99, 255, 0.1);
-    --bg-checkbox-checked: rgba(108, 99, 255, 0.2);
-    --bg-ticket-body: rgba(0, 0, 0, 0.15);
-    --bg-ann-gradient-start: rgba(108, 99, 255, 0.18);
-    --bg-ann-gradient-end: rgba(15, 14, 23, 0.95);
+
+    --bg-navbar: #1A1A2E;
+    --bg-modal: #1A1A2E;
+    --bg-checkbox: #1A1A2E;
+    --bg-checkbox-hover: #1E1E38;
+    --bg-checkbox-checked: #22223A;
+    --bg-ticket-body: #141426;
+    --bg-ann-gradient-start: #1A1A2E;
+    --bg-ann-gradient-end: #1A1A2E;
 }
 
 
@@ -67,7 +67,116 @@ html[data-theme="light"] {
     --bg-ann-gradient-end: #EBF1F6;
 }
 
-/* ── Neumorphic body background ── */
+/* ── Dark: Neumorphic body background (no gradient overlay) ── */
+body::before {
+    background: #1A1A2E;
+}
+
+/* ── Dark Mode Neumorphic Cards ── */
+.card,
+.glass,
+.glass-strong {
+    background: #1A1A2E;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 8px 8px 16px #0f0f1f, -8px -8px 16px #252540;
+    border-radius: 20px;
+}
+
+.card:hover {
+    background: #1A1A2E;
+    box-shadow: 12px 12px 24px #0d0d1c, -12px -12px 24px #272744;
+    transform: translateY(-2px);
+}
+
+/* ── Dark Mode Neumorphic Navbar ── */
+.navbar {
+    background: #1A1A2E;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 4px 4px 10px #0f0f1f, -4px -4px 10px #252540;
+}
+
+/* ── Dark Mode Neumorphic Filter Panel ── */
+.filter-panel {
+    background: #1A1A2E;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: inset 4px 4px 8px #0f0f1f, inset -4px -4px 8px #252540;
+    border-radius: 20px;
+    padding: 20px;
+}
+
+.filter-panel .filter-group select,
+.filter-panel .filter-group input {
+    background: #1A1A2E;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 4px 4px 8px #0f0f1f, -4px -4px 8px #252540;
+    border-radius: 10px;
+    color: #E8E6FF;
+    transition: var(--transition);
+}
+
+.filter-panel .filter-group select:hover,
+.filter-panel .filter-group input:hover {
+    box-shadow: 6px 6px 12px #0d0d1c, -6px -6px 12px #272744;
+}
+
+.filter-panel .filter-group select:focus,
+.filter-panel .filter-group input:focus {
+    box-shadow: inset 3px 3px 6px #0f0f1f, inset -3px -3px 6px #252540;
+    border-color: rgba(124, 110, 255, 0.5);
+}
+
+/* ── Dark Mode Neumorphic Tab Nav ── */
+.tab-nav {
+    background: #1A1A2E;
+    border: none;
+    box-shadow: inset 4px 4px 8px #0f0f1f, inset -4px -4px 8px #252540;
+    padding: 6px;
+    border-radius: 14px;
+}
+
+.tab-btn {
+    background: transparent;
+    color: #9A98B5;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+    background: #1A1A2E;
+    box-shadow: 4px 4px 8px #0f0f1f, -4px -4px 8px #252540;
+    color: var(--primary-light);
+    border-radius: 10px;
+}
+
+.tab-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--primary-light);
+}
+
+/* ── Dark Mode Neumorphic Inputs ── */
+.form-control {
+    background: #1A1A2E;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #E8E6FF;
+    box-shadow: inset 4px 4px 8px #0f0f1f, inset -4px -4px 8px #252540;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    background: #1A1A2E;
+    border-color: rgba(124, 110, 255, 0.5);
+    box-shadow: inset 2px 2px 5px #0f0f1f, inset -2px -2px 5px #252540, 0 0 0 3px rgba(124, 110, 255, 0.15);
+}
+
+.form-control::placeholder {
+    color: #6A6880;
+}
+
+/* ── Light Mode body background ── */
 html[data-theme="light"] body::before {
     background: #EBF1F6;
 }
@@ -724,20 +833,16 @@ img { max-width: 100%; height: auto; }
 .form-control {
     width: 100%;
     padding: 14px 18px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-family: var(--font-main);
     font-size: 0.95rem;
-    transition: var(--transition);
     outline: none;
+    /* shadows applied by dark/light mode blocks above */
 }
 
 .form-control:focus {
-    border-color: var(--primary);
-    background: rgba(108, 99, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+    outline: none;
 }
 
 .form-control::placeholder {
@@ -754,7 +859,7 @@ select.form-control {
 }
 
 select.form-control option {
-    background: var(--bg-modal, #1a1a2e);
+    background: var(--bg-modal);
     color: var(--text-primary);
 }
 
@@ -765,19 +870,10 @@ textarea.form-control {
 
 /* ===== Cards ===== */
 .card {
-    background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 30px;
     transition: var(--transition);
-}
-
-.card:hover {
-    border-color: var(--border-light);
-    transform: translateY(-3px);
-    box-shadow: var(--shadow);
+    /* background, shadow applied by dark/light mode blocks above */
 }
 
 .card-header {
@@ -1776,9 +1872,16 @@ textarea.form-control {
     flex-wrap: wrap;
     gap: 10px;
     padding: 12px;
-    background: var(--bg-checkbox, rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--border);
+    background: #1A1A2E;
+    border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: var(--radius-sm);
+    box-shadow: inset 4px 4px 8px #0f0f1f, inset -4px -4px 8px #252540;
+}
+
+html[data-theme="light"] .branch-checkboxes {
+    background: #EBF1F6;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: inset 4px 4px 8px #c9cfd6, inset -4px -4px 8px #ffffff;
 }
 
 .checkbox-item {
@@ -1786,8 +1889,8 @@ textarea.form-control {
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    background: var(--bg-checkbox, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--border);
+    background: #1A1A2E;
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-xs);
     cursor: pointer;
     font-size: 0.85rem;
@@ -1795,12 +1898,18 @@ textarea.form-control {
     color: var(--text-secondary);
     transition: var(--transition);
     user-select: none;
+    box-shadow: 4px 4px 8px #0f0f1f, -4px -4px 8px #252540;
+}
+
+html[data-theme="light"] .checkbox-item {
+    background: #EBF1F6;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 4px 4px 8px #c9cfd6, -4px -4px 8px #ffffff;
 }
 
 .checkbox-item:hover {
     border-color: var(--primary);
     color: var(--text-primary);
-    background: var(--bg-checkbox-hover, rgba(108, 99, 255, 0.1));
 }
 
 .checkbox-item input[type="checkbox"] {
@@ -1811,9 +1920,17 @@ textarea.form-control {
 }
 
 .checkbox-item:has(input:checked) {
-    background: var(--bg-checkbox-checked, rgba(108, 99, 255, 0.2));
+    background: #1A1A2E;
+    box-shadow: inset 2px 2px 5px #0f0f1f, inset -2px -2px 5px #252540;
     border-color: var(--primary);
     color: var(--primary-light);
+}
+
+html[data-theme="light"] .checkbox-item:has(input:checked) {
+    background: #EBF1F6;
+    box-shadow: inset 2px 2px 5px #c9cfd6, inset -2px -2px 5px #ffffff;
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 /* ===== Form Row (2-col) ===== */

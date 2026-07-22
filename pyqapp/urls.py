@@ -29,4 +29,12 @@ urlpatterns = [
     path('download-search-history-pdf/', views.download_search_history_pdf, name='download_search_history_pdf'),
     path('download-error-log/', views.download_error_log, name='download_error_log'),
     path('download-paper-stats-pdf/', views.download_paper_stats_pdf, name='download_paper_stats_pdf'),
+    path('upload-pyq/', views.upload_pyq_view, name='upload_pyq'),
+    path('upload-iq/', views.upload_iq_view, name='upload_iq'),
+    path('accept/', views.accept_view, name='accept'),
+    path('accept-action/', views.accept_action_view, name='accept_action'),
+    path('submission-details/', views.submission_details_view, name='submission_details'),
+    path('tutorial/', views.tutorial_view, name='tutorial'),
+    path('notifications/', views.notifications_view, name='notifications'),
+    path('my-uploads/', views.my_uploads_view, name='my_uploads'),
 ]

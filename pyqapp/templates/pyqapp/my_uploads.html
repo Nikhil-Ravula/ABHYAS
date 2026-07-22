@@ -1,0 +1,236 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Uploads - ABHYAS</title>
+    <link rel="icon" href="{{ FAVICON_URL }}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=6">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>(function(){const t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+    <style>
+        .uploads-hero { text-align:center; padding: 40px 0 20px; }
+        .uploads-hero .hero-icon {
+            width:72px; height:72px; border-radius:20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display:flex; align-items:center; justify-content:center;
+            font-size:2rem; margin: 0 auto 18px; box-shadow: 0 8px 32px rgba(108,99,255,0.35);
+        }
+        .uploads-hero h1 { font-size:1.8rem; font-weight:800; margin-bottom:6px; }
+        .uploads-hero p  { color:var(--text-muted); font-size:0.95rem; }
+
+        .tabs-nav {
+            display: flex; gap: 12px; margin-bottom: 24px;
+            background: var(--bg-checkbox); padding: 8px;
+            border-radius: var(--radius-sm); border: 1px solid var(--border);
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);
+        }
+        .tab-btn {
+            flex: 1; padding: 12px; border: none; background: none;
+            border-radius: var(--radius-xs); color: var(--text-secondary);
+            font-weight: 700; font-size: 0.9rem; cursor: pointer;
+            transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .tab-btn.active {
+            background: var(--bg-checkbox-checked); color: var(--primary-light);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .upload-card {
+            background: var(--bg-glass); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+            box-shadow: var(--shadow); transition: var(--transition);
+        }
+        .upload-card:hover { border-color: var(--border-light); transform: translateY(-2px); }
+
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        }
+        .card-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        
+        .status-badge {
+            font-size: 0.8rem; font-weight: 700; padding: 6px 12px; border-radius: 20px;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .status-pending { background: rgba(245, 158, 11, 0.12); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
+        .status-accepted { background: rgba(16, 185, 129, 0.12); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
+        .status-rejected { background: rgba(239, 68, 68, 0.12); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+
+        .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .detail-item { font-size: 0.88rem; color: var(--text-secondary); }
+        .detail-item strong { color: var(--text-primary); }
+
+        .status-message-box {
+            border-radius: var(--radius-xs); padding: 12px 16px;
+            font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; gap: 8px;
+        }
+        .msg-pending { background: rgba(245, 158, 11, 0.06); border-left: 3px solid var(--warning); color: var(--text-secondary); }
+        .msg-accepted { background: rgba(16, 185, 129, 0.06); border-left: 3px solid var(--success); color: var(--success); }
+        .msg-rejected { background: rgba(239, 68, 68, 0.06); border-left: 3px solid var(--danger); color: var(--danger); }
+
+        .empty-uploads {
+            text-align: center; padding: 60px 20px;
+            background: var(--bg-glass); border: 1px solid var(--border);
+            border-radius: var(--radius); box-shadow: var(--shadow);
+            color: var(--text-muted);
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="container">
+        <a href="{% url 'links' %}" class="nav-brand">
+            <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+            <span>ABHYAS</span>
+        </a>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+        <div class="hamburger" onclick="this.classList.toggle('active');document.getElementById('navLinks').classList.toggle('active');">
+            <span></span><span></span><span></span>
+        </div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="{% url 'links' %}" data-umami-event="nav.links"><i class="fas fa-link"></i> Links</a></li>
+            <li><a href="{% url 'tutorial' %}"><i class="fas fa-book-open"></i> Tutorial</a></li>
+            <li><a href="{% url 'logout' %}" style="color:var(--danger);">Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <div class="container" style="max-width: 720px;">
+
+        <div class="uploads-hero animate-up">
+            <div class="hero-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <h1>My Uploads</h1>
+            <p>Track the approval status of your contributed resources</p>
+        </div>
+
+        <div class="tabs-nav animate-up-delay">
+            <button class="tab-btn active" onclick="switchTab('pyq-tab', this)">
+                <i class="fas fa-file-alt"></i> PYQ Submissions
+            </button>
+            <button class="tab-btn" onclick="switchTab('iq-tab', this)">
+                <i class="fas fa-star"></i> IQ Submissions
+            </button>
+        </div>
+
+        <!-- PYQ Tab Content -->
+        <div id="pyq-tab" class="tab-content active">
+            <div class="animate-up-delay-2">
+                {% if pyqs %}
+                {% for pyq in pyqs %}
+                <div class="upload-card">
+                    <div class="card-header">
+                        <div class="card-title">{{ pyq.subject }}</div>
+                        <span class="status-badge {% if pyq.status == 'pending' %}status-pending{% elif pyq.status == 'accepted' %}status-accepted{% else %}status-rejected{% endif %}">
+                            {% if pyq.status == 'pending' %}<i class="fas fa-clock"></i> Pending
+                            {% elif pyq.status == 'accepted' %}<i class="fas fa-check-circle"></i> Accepted
+                            {% else %}<i class="fas fa-times-circle"></i> Rejected{% endif %}
+                        </span>
+                    </div>
+                    <div class="card-details">
+                        <div class="detail-item">Regulation: <strong>{{ pyq.regulation }}</strong></div>
+                        <div class="detail-item">Branch: <strong>{{ pyq.branch }}</strong></div>
+                        <div class="detail-item">Year: <strong>{{ pyq.year }}</strong></div>
+                        <div class="detail-item">Paper Type: <strong>{{ pyq.paper_type|capfirst }}</strong></div>
+                    </div>
+                    
+                    <div class="status-message-box {% if pyq.status == 'pending' %}msg-pending{% elif pyq.status == 'accepted' %}msg-accepted{% else %}msg-rejected{% endif %}">
+                        {% if pyq.status == 'pending' %}
+                            <i class="fas fa-hourglass-half"></i> Pending Review: Our team is checking your upload.
+                        {% elif pyq.status == 'accepted' %}
+                            <i class="fas fa-heart"></i> Thanks for contributing! Your upload has been published.
+                        {% else %}
+                            <i class="fas fa-exclamation-circle"></i> Please add another one. Double check the file details and try uploading again.
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-uploads">
+                    <i class="fas fa-file-excel" style="font-size: 2.5rem; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>You haven't uploaded any PYQs yet.</p>
+                    <a href="{% url 'upload_pyq' %}" class="btn btn-primary" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-upload"></i> Upload Now
+                    </a>
+                </div>
+            {% endif %}
+            </div>
+        </div>
+
+        <!-- IQ Tab Content -->
+        <div id="iq-tab" class="tab-content">
+            <div class="animate-up-delay-2">
+                {% if iqs %}
+                {% for iq in iqs %}
+                <div class="upload-card">
+                    <div class="card-header">
+                        <div class="card-title">{{ iq.subject }}</div>
+                        <span class="status-badge {% if iq.status == 'pending' %}status-pending{% elif iq.status == 'accepted' %}status-accepted{% else %}status-rejected{% endif %}">
+                            {% if iq.status == 'pending' %}<i class="fas fa-clock"></i> Pending
+                            {% elif iq.status == 'accepted' %}<i class="fas fa-check-circle"></i> Accepted
+                            {% else %}<i class="fas fa-times-circle"></i> Rejected{% endif %}
+                        </span>
+                    </div>
+                    <div class="card-details">
+                        <div class="detail-item">Regulation: <strong>{{ iq.regulation }}</strong></div>
+                        <div class="detail-item">Branch: <strong>{{ iq.branch }}</strong></div>
+                        <div class="detail-item">Unit: <strong>Unit {{ iq.unit }}</strong></div>
+                        <div class="detail-item">Question Type: <strong>{{ iq.question_type|capfirst }}</strong></div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <strong style="font-size: 0.85rem; color: var(--text-primary); display: block; margin-bottom: 6px;">Questions Uploaded:</strong>
+                        <ul style="padding-left: 20px; margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+                            {% for q in iq.questions.all %}
+                                <li style="margin-bottom: 4px;"><strong>Q{{ q.question_number }}:</strong> {{ q.question_text|truncatewords:15 }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    <div class="status-message-box {% if iq.status == 'pending' %}msg-pending{% elif iq.status == 'accepted' %}msg-accepted{% else %}msg-rejected{% endif %}">
+                        {% if iq.status == 'pending' %}
+                            <i class="fas fa-hourglass-half"></i> Pending Review: Our team is checking your upload.
+                        {% elif iq.status == 'accepted' %}
+                            <i class="fas fa-heart"></i> Thanks for contributing! Your upload has been published.
+                        {% else %}
+                            <i class="fas fa-exclamation-circle"></i> Please add another one. Double check the questions and try uploading again.
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-uploads">
+                    <i class="fas fa-file-excel" style="font-size: 2.5rem; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>You haven't uploaded any Important Questions yet.</p>
+                    <a href="{% url 'upload_iq' %}" class="btn btn-primary" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-upload"></i> Upload Now
+                    </a>
+                </div>
+            {% endif %}
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 24px;" class="animate-up-delay-3">
+            <a href="{% url 'links' %}" class="btn btn-primary" style="width: 100%;"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function switchTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
+    }
+</script>
+<script src="{% static 'js/theme.js' %}"></script>
+</body>
+</html>

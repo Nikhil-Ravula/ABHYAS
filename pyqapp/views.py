@@ -62,7 +62,8 @@ except Exception:
 from .models import (
     Paper, Ticket, TicketReply, ImportantQuestionEntry,
     PaperView, PaperDownload, IQView, IQDownload, SiteVisit,
-    UserSession, Announcement, ActivityLog
+    UserSession, Announcement, ActivityLog,
+    UserPYQSubmission, UserIQSubmission, UserIQSubmissionQuestion
 )
 
 # Setup logging
@@ -697,7 +698,7 @@ def student_dashboard(request):
                 'regulation': p.regulation,
                 'file_url': p.file.url,
                 'original_filename': p.original_filename,
-                'uploader': p.uploaded_by.username,
+                'uploader': p.display_name if p.display_name else p.uploaded_by.username,
                 'date': p.uploaded_at.strftime('%d %b, %Y')
             })
         # ── Activity Log: PYQ Search (exclude superusers) ─────────
@@ -2242,3 +2243,269 @@ def download_error_log(request):
     response = HttpResponse(buffer.read(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+# ── User Upload Views ─────────────────────────────────────────────────────
+
+BRANCHES_LIST = ["CSE", "CSM", "ECE", "EEE", "MECH", "CIVIL", "IT", "AI&DS", "AI&ML"]
+
+
+@never_cache
+@login_required
+def upload_pyq_view(request):
+    """User-facing PYQ upload. Admin/staff can view form but not submit."""
+    if request.method == 'POST':
+        if request.user.is_staff or request.user.is_superuser:
+            messages.error(request, 'Admins/Staff cannot submit via this page.')
+            return render(request, 'pyqapp/upload_pyq.html', {'branches': BRANCHES_LIST})
+
+        subject   = request.POST.get('subject', '').strip()
+        year      = request.POST.get('year', '').strip()
+        ptype     = request.POST.get('type', '').strip()
+        regulation= request.POST.get('regulation', 'R22')
+        branch    = ','.join(request.POST.getlist('branch'))
+        hashtags  = request.POST.get('hashtags', '').strip()
+        pfile     = request.FILES.get('paper_file')
+        show_name = request.POST.get('show_name') == 'on'
+
+        if not all([subject, year, ptype, pfile]):
+            messages.error(request, 'Please fill all required fields and attach a file.')
+            return render(request, 'pyqapp/upload_pyq.html', {'branches': BRANCHES_LIST})
+        if not year.isdigit():
+            messages.error(request, 'Year must be a valid number.')
+            return render(request, 'pyqapp/upload_pyq.html', {'branches': BRANCHES_LIST})
+
+        is_valid, err = validate_uploaded_file(pfile)
+        if not is_valid:
+            messages.error(request, err)
+            return render(request, 'pyqapp/upload_pyq.html', {'branches': BRANCHES_LIST})
+
+        if show_name:
+            full = f"{request.user.first_name} {request.user.last_name}".strip()
+            display_name = full if full else request.user.username
+        else:
+            display_name = 'Nikhil Ravula'
+
+        UserPYQSubmission.objects.create(
+            submitter=request.user, subject=subject, year=int(year),
+            paper_type=ptype, regulation=regulation, branch=branch,
+            hashtags=hashtags, file=pfile, original_filename=pfile.name,
+            show_name=show_name, display_name=display_name,
+        )
+        messages.success(request, 'Your PYQ has been submitted for admin review!')
+        return redirect('upload_pyq')
+
+    return render(request, 'pyqapp/upload_pyq.html', {'branches': BRANCHES_LIST})
+
+
+@never_cache
+@login_required
+def upload_iq_view(request):
+    """User-facing IQ upload. Admin/staff can view form but not submit."""
+    if request.method == 'POST':
+        if request.user.is_staff or request.user.is_superuser:
+            messages.error(request, 'Admins/Staff cannot submit via this page.')
+            return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+
+        subject  = request.POST.get('subject', '').strip()
+        hashtags = request.POST.get('hashtags', '').strip()
+        branch   = ','.join(request.POST.getlist('branch'))
+        reg      = request.POST.get('regulation', 'R22')
+        unit     = request.POST.get('unit', '').strip()
+        q_type   = request.POST.get('type', '').strip()
+
+        if not all([subject, unit, q_type]):
+            messages.error(request, 'Please fill all required fields.')
+            return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+        if not unit.isdigit() or not (1 <= int(unit) <= 5):
+            messages.error(request, 'Unit must be a number between 1 and 5.')
+            return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+
+        # Duplicate check — live IQs
+        if ImportantQuestionEntry.objects.filter(
+            subject__iexact=subject, regulation=reg,
+            unit=int(unit), question_type=q_type
+        ).exists():
+            messages.error(request, f"IQ for '{subject}' ({reg}, Unit {unit}, {q_type}) already exists on the site.")
+            return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+
+        # Duplicate check — pending/accepted submissions
+        if UserIQSubmission.objects.filter(
+            subject__iexact=subject, regulation=reg,
+            unit=int(unit), question_type=q_type,
+            status__in=['pending', 'accepted']
+        ).exists():
+            messages.error(request, f"A submission for '{subject}' ({reg}, Unit {unit}, {q_type}) is already pending or accepted.")
+            return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+
+        # Collect questions
+        questions_data = []
+        i = 1
+        while True:
+            q_text_key = f'question_{i}'
+            q_file_key = f'file_{i}'
+            if q_text_key not in request.POST and q_file_key not in request.FILES:
+                break
+            q_text = request.POST.get(q_text_key, '').strip()
+            q_file = request.FILES.get(q_file_key)
+            if q_text or q_file:
+                questions_data.append((i, q_text, q_file))
+            i += 1
+
+        if not questions_data:
+            messages.error(request, 'Please add at least one question.')
+            return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+
+        for q_num, q_text, q_file in questions_data:
+            if q_file:
+                is_valid, err = validate_uploaded_file(q_file)
+                if not is_valid:
+                    messages.error(request, f'Question {q_num}: {err}')
+                    return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+
+        submission = UserIQSubmission.objects.create(
+            submitter=request.user, subject=subject, hashtags=hashtags,
+            branch=branch, regulation=reg, unit=int(unit), question_type=q_type,
+        )
+        for q_num, q_text, q_file in questions_data:
+            q_obj = UserIQSubmissionQuestion(
+                submission=submission, question_number=q_num, question_text=q_text
+            )
+            if q_file:
+                q_obj.file = q_file
+                q_obj.original_filename = q_file.name
+            q_obj.save()
+
+        messages.success(request, 'Your IQ submission has been sent for admin review!')
+        return redirect('upload_iq')
+
+    return render(request, 'pyqapp/upload_iq.html', {'branches': BRANCHES_LIST})
+
+
+@never_cache
+@login_required
+def accept_view(request):
+    """Admin-only page: list pending PYQ and IQ user submissions."""
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('links')
+    pending_pyqs = UserPYQSubmission.objects.filter(status='pending').select_related('submitter')
+    pending_iqs  = UserIQSubmission.objects.filter(status='pending').prefetch_related('questions', 'submitter')
+    return render(request, 'pyqapp/accept.html', {
+        'pending_pyqs': pending_pyqs,
+        'pending_iqs':  pending_iqs,
+    })
+
+
+@never_cache
+@login_required
+@require_http_methods(['POST'])
+def accept_action_view(request):
+    """Admin-only POST: accept or reject a user PYQ/IQ submission."""
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('links')
+
+    action      = request.POST.get('action')          # 'accept' or 'reject'
+    sub_type    = request.POST.get('sub_type')        # 'pyq' or 'iq'
+    sub_id      = request.POST.get('sub_id')
+
+    if action not in ('accept', 'reject') or sub_type not in ('pyq', 'iq') or not sub_id:
+        messages.error(request, 'Invalid action.')
+        return redirect('accept')
+
+    now = timezone.now()
+
+    if sub_type == 'pyq':
+        sub = get_object_or_404(UserPYQSubmission, id=sub_id)
+        sub.status      = action + 'ed'   # 'accepted' or 'rejected'
+        sub.reviewed_at = now
+        sub.reviewed_by = request.user
+        sub.save()
+        if action == 'accept':
+            # Copy file content to papers/
+            from django.core.files.base import ContentFile
+            file_content = sub.file.read()
+            new_paper = Paper(
+                subject=sub.subject, year=sub.year, paper_type=sub.paper_type,
+                regulation=sub.regulation, branch=sub.branch, hashtags=sub.hashtags,
+                original_filename=sub.original_filename,
+                uploaded_by=request.user, display_name=sub.display_name,
+            )
+            new_paper.file.save(sub.original_filename, ContentFile(file_content), save=True)
+            messages.success(request, f'PYQ "{sub.subject}" accepted and published!')
+        else:
+            messages.warning(request, f'PYQ "{sub.subject}" rejected.')
+
+    else:  # iq
+        sub = get_object_or_404(UserIQSubmission, id=sub_id)
+        sub.status      = action + 'ed'
+        sub.reviewed_at = now
+        sub.reviewed_by = request.user
+        sub.save()
+        if action == 'accept':
+            from django.core.files.base import ContentFile
+            for q in sub.questions.all():
+                iq_entry = ImportantQuestionEntry(
+                    subject=sub.subject, hashtags=sub.hashtags, branch=sub.branch,
+                    regulation=sub.regulation, unit=sub.unit, question_type=sub.question_type,
+                    question_number=q.question_number, question_text=q.question_text,
+                    original_filename=q.original_filename, uploaded_by=request.user,
+                )
+                if q.file:
+                    content = q.file.read()
+                    iq_entry.file.save(q.original_filename or f'iq_{q.id}.bin', ContentFile(content), save=True)
+                else:
+                    iq_entry.save()
+            messages.success(request, f'IQ submission "{sub.subject}" accepted and published!')
+        else:
+            messages.warning(request, f'IQ submission "{sub.subject}" rejected.')
+
+    return redirect('accept')
+
+
+@never_cache
+@login_required
+def submission_details_view(request):
+    """Admin-only: full history of all PYQ and IQ user submissions."""
+    if not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('links')
+    status_filter = request.GET.get('status', 'all')
+    pyq_qs = UserPYQSubmission.objects.select_related('submitter', 'reviewed_by')
+    iq_qs  = UserIQSubmission.objects.prefetch_related('questions').select_related('submitter', 'reviewed_by')
+    if status_filter in ('pending', 'accepted', 'rejected'):
+        pyq_qs = pyq_qs.filter(status=status_filter)
+        iq_qs  = iq_qs.filter(status=status_filter)
+    return render(request, 'pyqapp/details.html', {
+        'pyq_submissions': pyq_qs,
+        'iq_submissions':  iq_qs,
+        'status_filter':   status_filter,
+    })
+
+
+@never_cache
+@login_required
+def tutorial_view(request):
+    """User-facing contributor guide/tutorial."""
+    return render(request, 'pyqapp/tutorial.html')
+
+
+@never_cache
+@login_required
+def notifications_view(request):
+    """User-facing announcements/notifications page."""
+    announcements = Announcement.objects.filter(is_active=True).order_by('-created_at')
+    return render(request, 'pyqapp/notifications.html', {'announcements': announcements})
+
+
+@never_cache
+@login_required
+def my_uploads_view(request):
+    """View to display the user's submitted PYQ and IQ files with their approval status."""
+    pyqs = UserPYQSubmission.objects.filter(submitter=request.user).order_by('-submitted_at')
+    iqs = UserIQSubmission.objects.filter(submitter=request.user).prefetch_related('questions').order_by('-submitted_at')
+    return render(request, 'pyqapp/my_uploads.html', {
+        'pyqs': pyqs,
+        'iqs': iqs,
+    })

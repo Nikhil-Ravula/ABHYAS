@@ -1,0 +1,287 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accept Submissions - ABHYAS</title>
+    <link rel="icon" href="{{ FAVICON_URL }}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=5">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>(function(){const t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+    <style>
+        .page-title-bar { display:flex; align-items:center; gap:14px; margin-bottom:30px; }
+        .page-title-bar .title-icon {
+            width:56px; height:56px; border-radius:16px;
+            background:linear-gradient(135deg,var(--primary),var(--accent));
+            display:flex; align-items:center; justify-content:center; font-size:1.5rem;
+        }
+        .sub-card {
+            background:var(--bg-glass); backdrop-filter:blur(20px);
+            border:1px solid var(--border); border-radius:var(--radius);
+            padding:24px; margin-bottom:20px; transition:var(--transition);
+        }
+        .sub-card:hover { border-color:var(--border-light); box-shadow:var(--shadow); }
+        .sub-card-header {
+            display:flex; align-items:flex-start; justify-content:space-between;
+            flex-wrap:wrap; gap:12px; margin-bottom:16px;
+        }
+        .sub-type-badge {
+            padding:4px 12px; border-radius:50px; font-size:0.72rem;
+            font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+        }
+        .badge-pyq { background:rgba(0,196,140,0.15); color:var(--success); border:1px solid rgba(0,196,140,0.3); }
+        .badge-iq  { background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+        .meta-grid {
+            display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+            gap:12px; margin-bottom:16px;
+        }
+        .meta-item { background:var(--bg-ticket-body); border-radius:var(--radius-sm); padding:10px 14px; }
+        .meta-item label { font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:3px; text-transform:uppercase; letter-spacing:.5px; }
+        .meta-item span  { font-size:0.9rem; font-weight:600; }
+        .submitter-row {
+            display:flex; align-items:center; gap:10px;
+            padding:12px 16px; background:rgba(108,99,255,0.06);
+            border-radius:var(--radius-sm); margin-bottom:14px;
+            border-left:3px solid var(--primary);
+        }
+        .submitter-avatar {
+            width:36px; height:36px; border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            display:flex; align-items:center; justify-content:center;
+            font-weight:700; font-size:0.9rem; flex-shrink:0;
+        }
+        .q-preview {
+            background:var(--bg-ticket-body); border-radius:var(--radius-sm);
+            padding:12px 14px; margin-bottom:8px; font-size:0.88rem;
+            line-height:1.6; color:var(--text-secondary);
+            border-left:3px solid var(--accent);
+        }
+        .q-preview .q-num { font-weight:700; color:var(--accent); margin-bottom:4px; font-size:0.8rem; }
+        .action-row { display:flex; gap:10px; align-items:center; margin-top:18px; flex-wrap:wrap; }
+        .btn-accept { background:linear-gradient(135deg,var(--success),#00a86b); color:#fff; border:none; padding:9px 22px; border-radius:var(--radius-xs); cursor:pointer; font-weight:600; font-size:0.88rem; font-family:var(--font-main); transition:var(--transition); }
+        .btn-accept:hover { opacity:.88; transform:translateY(-1px); }
+        .btn-reject { background:rgba(255,101,132,0.12); color:var(--danger); border:1px solid rgba(255,101,132,0.3); padding:9px 22px; border-radius:var(--radius-xs); cursor:pointer; font-weight:600; font-size:0.88rem; font-family:var(--font-main); transition:var(--transition); }
+        .btn-reject:hover { background:rgba(255,101,132,0.22); }
+        .file-preview-link { display:inline-flex; align-items:center; gap:6px; color:var(--secondary); font-size:0.85rem; font-weight:600; text-decoration:none; padding:6px 12px; border-radius:var(--radius-xs); background:rgba(0,180,216,0.08); border:1px solid rgba(0,180,216,0.2); transition:var(--transition); }
+        .file-preview-link:hover { background:rgba(0,180,216,0.16); }
+        .section-sep { display:flex; align-items:center; gap:14px; margin:30px 0 20px; }
+        .section-sep hr { flex:1; border:none; border-top:1px solid var(--border); }
+        .section-sep span { font-size:0.85rem; font-weight:700; color:var(--text-muted); white-space:nowrap; }
+        .empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
+        .empty-state i { font-size:3rem; opacity:.3; display:block; margin-bottom:14px; }
+        .show-name-pill {
+            display:inline-flex; align-items:center; gap:5px; font-size:0.75rem;
+            padding:3px 10px; border-radius:50px; font-weight:600;
+        }
+        .pill-checked { background:rgba(0,196,140,0.15); color:var(--success); border:1px solid rgba(0,196,140,0.3); }
+        .pill-unchecked { background:rgba(255,184,0,0.12); color:var(--warning); border:1px solid rgba(255,184,0,0.25); }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="container">
+        <a href="{% url 'admin_log' %}" class="nav-brand">
+            <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+            <span>ABHYAS</span>
+        </a>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+        <div class="hamburger" onclick="this.classList.toggle('active');document.getElementById('navLinks').classList.toggle('active');">
+            <span></span><span></span><span></span>
+        </div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="{% url 'admin_log' %}"><i class="fas fa-shield-halved"></i> Admin Dashboard</a></li>
+            <li><a href="{% url 'submission_details' %}"><i class="fas fa-history"></i> History</a></li>
+            <li><a href="{% url 'logout' %}" style="color:var(--danger);">Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <div class="container">
+
+        <div class="page-title-bar animate-up">
+            <div class="title-icon"><i class="fas fa-inbox"></i></div>
+            <div>
+                <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:2px;">Pending Submissions</h1>
+                <p style="color:var(--text-muted);font-size:0.88rem;">
+                    {{ pending_pyqs.count }} PYQ &nbsp;·&nbsp; {{ pending_iqs.count }} IQ awaiting review
+                </p>
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="toast toast-{{ message.tags }}" style="position:static;margin-bottom:1rem;width:100%;">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- ── PYQ Submissions ── -->
+        <div class="section-sep">
+            <hr><span><i class="fas fa-file-alt"></i> PYQ Submissions ({{ pending_pyqs.count }})</span><hr>
+        </div>
+
+        {% for sub in pending_pyqs %}
+        <div class="sub-card animate-up">
+            <div class="sub-card-header">
+                <div>
+                    <span class="sub-type-badge badge-pyq"><i class="fas fa-file-alt"></i> PYQ</span>
+                    <h3 style="font-size:1.1rem;font-weight:700;margin-top:8px;">{{ sub.subject }}</h3>
+                </div>
+                <small style="color:var(--text-muted);">{{ sub.submitted_at|date:"d M Y · H:i" }}</small>
+            </div>
+
+            <!-- Submitter info -->
+            <div class="submitter-row">
+                <div class="submitter-avatar">{{ sub.submitter.username|first|upper }}</div>
+                <div>
+                    <div style="font-weight:700;font-size:0.9rem;">{{ sub.submitter.username }}</div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);">
+                        {{ sub.submitter.get_full_name|default:"No full name" }}
+                    </div>
+                </div>
+                <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                    {% if sub.show_name %}
+                    <span class="show-name-pill pill-checked"><i class="fas fa-eye"></i> Shows: {{ sub.display_name }}</span>
+                    {% else %}
+                    <span class="show-name-pill pill-unchecked"><i class="fas fa-eye-slash"></i> Shows: Nikhil Ravula</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="meta-grid">
+                <div class="meta-item"><label>Year</label><span>{{ sub.year }}</span></div>
+                <div class="meta-item"><label>Type</label><span>{{ sub.paper_type|capfirst }}</span></div>
+                <div class="meta-item"><label>Regulation</label><span>{{ sub.regulation }}</span></div>
+                <div class="meta-item"><label>Branch</label><span>{{ sub.branch|default:"—" }}</span></div>
+                <div class="meta-item"><label>Hashtags</label><span>{{ sub.hashtags|default:"—" }}</span></div>
+                <div class="meta-item"><label>File</label><span>{{ sub.original_filename }}</span></div>
+            </div>
+
+            <!-- File preview -->
+            <a href="{{ sub.file.url }}" target="_blank" class="file-preview-link">
+                <i class="fas fa-eye"></i> View Uploaded File
+            </a>
+
+            <!-- Actions -->
+            <div class="action-row">
+                <form method="POST" action="{% url 'accept_action' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="sub_type" value="pyq">
+                    <input type="hidden" name="sub_id" value="{{ sub.id }}">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="btn-accept" onclick="return confirm('Accept and publish this PYQ?')">
+                        <i class="fas fa-check"></i> Accept & Publish
+                    </button>
+                </form>
+                <form method="POST" action="{% url 'accept_action' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="sub_type" value="pyq">
+                    <input type="hidden" name="sub_id" value="{{ sub.id }}">
+                    <input type="hidden" name="action" value="reject">
+                    <button type="submit" class="btn-reject" onclick="return confirm('Reject this PYQ submission?')">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            <p>No pending PYQ submissions.</p>
+        </div>
+        {% endfor %}
+
+        <!-- ── IQ Submissions ── -->
+        <div class="section-sep">
+            <hr><span><i class="fas fa-star"></i> IQ Submissions ({{ pending_iqs.count }})</span><hr>
+        </div>
+
+        {% for sub in pending_iqs %}
+        <div class="sub-card animate-up">
+            <div class="sub-card-header">
+                <div>
+                    <span class="sub-type-badge badge-iq"><i class="fas fa-star"></i> IQ</span>
+                    <h3 style="font-size:1.1rem;font-weight:700;margin-top:8px;">{{ sub.subject }}</h3>
+                </div>
+                <small style="color:var(--text-muted);">{{ sub.submitted_at|date:"d M Y · H:i" }}</small>
+            </div>
+
+            <!-- Submitter info -->
+            <div class="submitter-row">
+                <div class="submitter-avatar">{{ sub.submitter.username|first|upper }}</div>
+                <div>
+                    <div style="font-weight:700;font-size:0.9rem;">{{ sub.submitter.username }}</div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);">{{ sub.submitter.get_full_name|default:"No full name" }}</div>
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="meta-grid">
+                <div class="meta-item"><label>Unit</label><span>Unit {{ sub.unit }}</span></div>
+                <div class="meta-item"><label>Type</label><span>{{ sub.question_type|capfirst }}</span></div>
+                <div class="meta-item"><label>Regulation</label><span>{{ sub.regulation }}</span></div>
+                <div class="meta-item"><label>Branch</label><span>{{ sub.branch|default:"—" }}</span></div>
+                <div class="meta-item"><label>Hashtags</label><span>{{ sub.hashtags|default:"—" }}</span></div>
+                <div class="meta-item"><label>Questions</label><span>{{ sub.questions.count }}</span></div>
+            </div>
+
+            <!-- Question previews -->
+            <div style="margin-bottom:10px;">
+                <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">
+                    <i class="fas fa-list-ol"></i> Questions Preview
+                </div>
+                {% for q in sub.questions.all %}
+                <div class="q-preview">
+                    <div class="q-num">Q{{ q.question_number }}</div>
+                    {% if q.question_text %}
+                    <div>{{ q.question_text }}</div>
+                    {% endif %}
+                    {% if q.file %}
+                    <a href="{{ q.file.url }}" target="_blank" class="file-preview-link" style="margin-top:6px;display:inline-flex;">
+                        <i class="fas fa-paperclip"></i> View Attached File ({{ q.original_filename }})
+                    </a>
+                    {% endif %}
+                    {% if not q.question_text and not q.file %}
+                    <span style="color:var(--text-muted);font-style:italic;">No content provided</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Actions -->
+            <div class="action-row">
+                <form method="POST" action="{% url 'accept_action' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="sub_type" value="iq">
+                    <input type="hidden" name="sub_id" value="{{ sub.id }}">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="btn-accept" onclick="return confirm('Accept and publish this IQ batch?')">
+                        <i class="fas fa-check"></i> Accept & Publish
+                    </button>
+                </form>
+                <form method="POST" action="{% url 'accept_action' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="sub_type" value="iq">
+                    <input type="hidden" name="sub_id" value="{{ sub.id }}">
+                    <input type="hidden" name="action" value="reject">
+                    <button type="submit" class="btn-reject" onclick="return confirm('Reject this IQ submission?')">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            <p>No pending IQ submissions.</p>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+
+<script src="{% static 'js/theme.js' %}"></script>
+</body>
+</html>
