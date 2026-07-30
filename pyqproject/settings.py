@@ -1,9 +1,13 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from nidhi_sdk.kavach import load_secrets
+    load_secrets("abhyas")
+except ImportError:
+    pass
 import posixpath
 
-load_dotenv()
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
