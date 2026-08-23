@@ -1,5 +1,5 @@
 {% load static %}
-{#
+{% comment %}
    Developer backdoor login (_dev/<secret>/) - Vitharn-branded UI layer.
 
    SCOPE NOTE (SCRUM-916 family): visual layer ONLY.
@@ -20,9 +20,12 @@
    - Prefix-safe: assets resolved via the static template tag plus the
      FAVICON_URL context variable, so prod (/abhyas/app) and dev
      (/vitharn/abhyas/app) both resolve correctly.
-   NOTE: never write raw template-tag syntax inside Django brace-comments;
-   some lexers parse it as live tags and crash the page.
-#}
+   NOTE: never write raw template-tag syntax inside Django comments;
+   some lexers parse it as live tags and crash the page. Multi-line
+   comments MUST use the block-comment tag pair - bare single-brace-hash
+   comments are single-line-only in Django and leak raw into HTML
+   (SCRUM-916 lesson).
+{% endcomment %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
