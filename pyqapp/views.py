@@ -492,16 +492,25 @@ def register_view(request):
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def dev_secret_login(request, secret):
-    """Developer-only superuser backdoor login (production only).
+    """Developer-only superuser backdoor login (production + development).
 
     This is intentionally NOT linked anywhere in the UI and is disabled by
     default. It only activates when:
-      1. ENVIRONMENT == 'production'
+      1. ENVIRONMENT is 'production' or 'development'
       2. DEV_LOGIN_SECRET env var is set AND matches the ``secret`` URL arg
-    The secret lives only in the production container env (never in the repo),
+         (set per-environment in the Vitharn platform compose files; rotate
+         both together — SCRUM-910)
+    The secret lives only in the container env (never committed to this repo),
     so inspecting the source or the live page reveals nothing usable.
     Authentication uses Django's native ``authenticate()`` and ONLY succeeds
     for users who are already ``is_superuser`` — students/SSO users are rejected.
+
+    Response contract (SCRUM-910): a wrong/missing secret returns 404
+    (indistinguishable from a nonexistent route); valid secret but failed
+    authentication or non-superuser returns 403. On success the session is
+    established and the caller is redirected to /admin-log/, which itself
+    requires an authenticated superuser (@login_required; non-superusers are
+    redirected to the student dashboard, never shown admin content).
     """
     expected = os.environ.get("DEV_LOGIN_SECRET")
     if settings.ENVIRONMENT not in ("production", "development") or not expected or secret != expected:
