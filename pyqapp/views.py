@@ -558,19 +558,11 @@ def dev_secret_login(request, secret):
         logger.warning("Dev secret login rejected for %s (not superuser or bad creds)", username)
         return HttpResponse("Forbidden", status=403)
 
-    from django.middleware.csrf import get_token
-
-    # SCRUM-916: embed a CSRF hidden input purely to bootstrap the csrftoken
-    # cookie on first GET. The POST stays @csrf_exempt; this only ensures the
-    # authenticated session starts with a cookie already set.
-    token = get_token(request)
-    return HttpResponse(
-        '<!doctype html><meta name="robots" content="noindex"><form method="post">'
-        '<input type="hidden" name="csrfmiddlewaretoken" value="%s">'
-        '<input name="username" placeholder="username" autofocus>'
-        '<input name="password" type="password" placeholder="password">'
-        '<button type="submit">login</button></form>' % token
-    )
+    # UI layer (SCRUM-916 family): branded template. Form contract unchanged —
+    # POST to same URL, fields `username` + `password` (see dev_login.html).
+    # The template's {% csrf_token %} also bootstraps the csrftoken cookie on
+    # first GET (SCRUM-916); the POST itself stays @csrf_exempt.
+    return render(request, "pyqapp/dev_login.html")
 
 
 def logout_view(request):

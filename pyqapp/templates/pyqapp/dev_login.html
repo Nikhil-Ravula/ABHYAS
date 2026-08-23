@@ -1,0 +1,305 @@
+{% load static %}
+{# ─────────────────────────────────────────────────────────────────────────
+   Developer backdoor login (_dev/<secret>/) — Vitharn-branded UI layer.
+
+   SCOPE NOTE (SCRUM-916 family): visual layer ONLY.
+   - Form contract preserved from the previous inline-HTML version:
+       <form method="post">  (no action → posts to the same URL)
+         input name="username"  (autofocus)
+         input name="password"  (type="password")
+         button type="submit"
+     The view is @csrf_exempt; {% csrf_token %} below is additive/harmless.
+   - ERROR SLOT CONTRACTS supported (renders nothing when empty):
+       1. django.contrib.messages framework (any tag)
+       2. bare context variable `error` (string) — e.g.
+          render(request, "pyqapp/dev_login.html", {"error": "Forbidden"})
+   - Styling: Vitharn UI style guide tokens (#2858A0/#8854D0 gradient,
+     #F8F9FA bg, #E2E8F0 borders, Inter/system stack). Self-contained:
+     no external CDNs, fonts, or scripts (offline-tolerant).
+   - Prefix-safe: all assets via {% static %} / {{ FAVICON_URL }} so prod
+     (/abhyas/app) and dev (/vitharn/abhyas/app) both resolve correctly.
+   ───────────────────────────────────────────────────────────────────────── #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Developer Sign In · ABHYAS</title>
+    <link rel="icon" href="{{ FAVICON_URL }}">
+    <style>
+        /* ── Vitharn style-guide tokens ─────────────────────────────── */
+        :root {
+            --v-blue: #2858A0;
+            --v-purple: #8854D0;
+            --v-bg: #F8F9FA;
+            --v-surface: #FFFFFF;
+            --v-text: #1E293B;
+            --v-text-2: #64748B;
+            --v-border: #E2E8F0;
+            --v-error: #EF4444;
+            --v-ring: rgba(40, 88, 160, 0.25);
+            --v-radius-card: 12px;
+            --v-radius-btn: 12px;
+            --v-radius-input: 8px;
+            --v-shadow-card: 0 4px 12px rgba(0, 0, 0, 0.15);
+            --v-shadow-btn: 0 4px 14px rgba(40, 88, 160, 0.25);
+            --v-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                     Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body { height: 100%; }
+
+        body {
+            font-family: var(--v-font);
+            background-color: var(--v-bg);
+            color: var(--v-text);
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px 16px;
+            position: relative;
+        }
+
+        /* Vitharn signature: blueprint grid + soft radial glow */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-image:
+                linear-gradient(to right, rgba(40, 88, 160, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(40, 88, 160, 0.05) 1px, transparent 1px);
+            background-size: 32px 32px;
+            background-position: center top;
+        }
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 45vh;
+            z-index: -1;
+            background: radial-gradient(circle at 50% -20%, rgba(136, 84, 208, 0.07), transparent 60%);
+            pointer-events: none;
+        }
+
+        .dev-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--v-surface);
+            border: 1px solid var(--v-border);
+            border-radius: var(--v-radius-card);
+            box-shadow: var(--v-shadow-card);
+            padding: 32px;
+            animation: rise 300ms ease-out both;
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .dev-card { animation: none; }
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .brand__logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            display: block;
+        }
+
+        .brand__name {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--v-blue), var(--v-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: var(--v-blue); /* fallback if clipping unsupported */
+        }
+
+        .brand__context {
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--v-text-2);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        h1.dev-title {
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        p.dev-subtitle {
+            font-size: 14px;
+            color: var(--v-text-2);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        /* ── Error slot: renders nothing when empty ─────────────────── */
+        .alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: var(--v-radius-input);
+            font-size: 14px;
+            line-height: 1.45;
+            margin-bottom: 20px;
+        }
+        .alert--error {
+            background: rgba(239, 68, 68, 0.08);
+            border-left: 4px solid var(--v-error);
+            color: #991B1B;
+        }
+
+        .form-group { margin-bottom: 18px; }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--v-text);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            min-height: 46px;           /* ≥44px touch target */
+            padding: 12px 14px;
+            font-family: inherit;
+            font-size: 16px;            /* prevents iOS focus zoom */
+            color: var(--v-text);
+            background: var(--v-surface);
+            border: 1px solid var(--v-border);
+            border-radius: var(--v-radius-input);
+            outline: none;
+            transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+            appearance: none;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: var(--v-blue);
+            box-shadow: 0 0 0 3px var(--v-ring);
+        }
+
+        .btn-primary {
+            width: 100%;
+            min-height: 48px;           /* ≥44px touch target */
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            color: #FFFFFF;
+            background: linear-gradient(135deg, var(--v-blue), var(--v-purple));
+            border: none;
+            border-radius: var(--v-radius-btn);
+            cursor: pointer;
+            box-shadow: var(--v-shadow-btn);
+            transition: transform 200ms ease-out, box-shadow 200ms ease-out,
+                        filter 200ms ease-out;
+            margin-top: 4px;
+        }
+
+        .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); filter: brightness(0.97); }
+        .btn-primary:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--v-ring), var(--v-shadow-btn);
+        }
+
+        .dev-footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--v-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--v-text-2);
+        }
+
+        .dev-footer svg { flex-shrink: 0; opacity: 0.7; }
+
+        @media (max-width: 480px) {
+            body { padding: 16px 12px; }
+            .dev-card { padding: 24px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="dev-card">
+        <header class="brand">
+            <img class="brand__logo" src="{% static 'img/vitharn-logo.png' %}" alt="Vitharn logo" width="56" height="56">
+            <div class="brand__name">Vitharn</div>
+            <div class="brand__context">ABHYAS &middot; Developer Access</div>
+        </header>
+
+        <h1 class="dev-title">Sign in to continue</h1>
+        <p class="dev-subtitle">Restricted area for platform maintainers.</p>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert--error" role="alert">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% if error %}
+        <div class="alert alert--error" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_username">Username</label>
+                <input type="text" name="username" id="id_username"
+                       placeholder="Enter your username"
+                       autocomplete="username" autofocus required>
+            </div>
+            <div class="form-group">
+                <label for="id_password">Password</label>
+                <input type="password" name="password" id="id_password"
+                       placeholder="Enter your password"
+                       autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn-primary">Sign in</button>
+        </form>
+
+        <footer class="dev-footer">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Protected system &middot; authorized maintainers only</span>
+        </footer>
+    </main>
+
+</body>
+</html>
