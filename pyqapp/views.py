@@ -508,9 +508,20 @@ def dev_secret_login(request, secret):
     Response contract (SCRUM-910): a wrong/missing secret returns 404
     (indistinguishable from a nonexistent route); valid secret but failed
     authentication or non-superuser returns 403. On success the session is
-    established and the caller is redirected to /admin-log/, which itself
-    requires an authenticated superuser (@login_required; non-superusers are
-    redirected to the student dashboard, never shown admin content).
+    established and the caller is redirected to /admin-log/ with **303 See
+    Other** (SCRUM-916: 303 mandates the next hop be a GET for every compliant
+    client; a 302 followed with the method still pinned as POST by tools like
+    ``curl -X POST -L`` re-POSTs a credential body to /admin-log/ without any
+    CSRF token and trips CsrfViewMiddleware). /admin-log/ itself requires an
+    authenticated superuser (@login_required; non-superusers are redirected to
+    the student dashboard, never shown admin content).
+
+    Identifier fallbacks (SCRUM-916, this view ONLY): when the typed username
+    fails, it is resolved to at most ONE existing superuser by exact email
+    match (case-insensitive) or case-insensitive username match, and the SAME
+    password is re-checked through authenticate(). Ambiguous or missing
+    matches and wrong passwords fail identically to before (403 + warning).
+    Normal student/staff login paths never run this code.
     """
     expected = os.environ.get("DEV_LOGIN_SECRET")
     if settings.ENVIRONMENT not in ("production", "development") or not expected or secret != expected:
@@ -521,18 +532,44 @@ def dev_secret_login(request, secret):
         username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
         user = authenticate(request, username=username, password=password)
+
+        if (user is None or not user.is_superuser) and username:
+            resolved = list(
+                User.objects.filter(
+                    Q(email__iexact=username) | Q(username__iexact=username),
+                    is_superuser=True,
+                ).values_list("username", flat=True)
+            )
+            if len(resolved) == 1:
+                user = authenticate(request, username=resolved[0], password=password)
+                if user is not None and user.is_superuser:
+                    logger.info(
+                        "Dev secret login: identifier '%s' resolved to superuser '%s'",
+                        username,
+                        resolved[0],
+                    )
+
         if user is not None and user.is_superuser:
             login(request, user)
-            logger.info("Dev secret superuser login for %s", username)
-            return redirect("admin_log")
+            logger.info("Dev secret superuser login for %s", user.get_username())
+            response = redirect("admin_log")
+            response.status_code = 303  # See Other — force GET on the next hop
+            return response
         logger.warning("Dev secret login rejected for %s (not superuser or bad creds)", username)
         return HttpResponse("Forbidden", status=403)
 
+    from django.middleware.csrf import get_token
+
+    # SCRUM-916: embed a CSRF hidden input purely to bootstrap the csrftoken
+    # cookie on first GET. The POST stays @csrf_exempt; this only ensures the
+    # authenticated session starts with a cookie already set.
+    token = get_token(request)
     return HttpResponse(
         '<!doctype html><meta name="robots" content="noindex"><form method="post">'
+        '<input type="hidden" name="csrfmiddlewaretoken" value="%s">'
         '<input name="username" placeholder="username" autofocus>'
         '<input name="password" type="password" placeholder="password">'
-        '<button type="submit">login</button></form>'
+        '<button type="submit">login</button></form>' % token
     )
 
 
