@@ -528,12 +528,9 @@ def dev_secret_login(request, secret):
         logger.warning("Dev secret login rejected for %s (not superuser or bad creds)", username)
         return HttpResponse("Forbidden", status=403)
 
-    return HttpResponse(
-        '<!doctype html><meta name="robots" content="noindex"><form method="post">'
-        '<input name="username" placeholder="username" autofocus>'
-        '<input name="password" type="password" placeholder="password">'
-        '<button type="submit">login</button></form>'
-    )
+    # UI layer (SCRUM-916 family): branded template. Form contract unchanged —
+    # POST to same URL, fields `username` + `password` (see dev_login.html).
+    return render(request, "pyqapp/dev_login.html")
 
 
 def logout_view(request):
