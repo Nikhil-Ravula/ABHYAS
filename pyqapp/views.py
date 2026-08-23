@@ -518,10 +518,12 @@ def dev_secret_login(request, secret):
 
     Identifier fallbacks (SCRUM-916, this view ONLY): when the typed username
     fails, it is resolved to at most ONE existing superuser by exact email
-    match (case-insensitive) or case-insensitive username match, and the SAME
-    password is re-checked through authenticate(). Ambiguous or missing
-    matches and wrong passwords fail identically to before (403 + warning).
-    Normal student/staff login paths never run this code.
+    match (case-insensitive), case-insensitive username match, or — when the
+    exact pass finds nothing — a UNIQUE case-insensitive username PREFIX match
+    (e.g. 'Nikhil' -> 'Nikhill' when that is the only superuser starting with
+    it); the SAME password is re-checked through authenticate() in every case.
+    Ambiguous or missing matches and wrong passwords fail identically to
+    before (403 + warning). Normal student/staff login paths never run this.
     """
     expected = os.environ.get("DEV_LOGIN_SECRET")
     if settings.ENVIRONMENT not in ("production", "development") or not expected or secret != expected:
@@ -548,6 +550,24 @@ def dev_secret_login(request, secret):
                         username,
                         resolved[0],
                     )
+            if (user is None or not user.is_superuser) and len(resolved) != 1:
+                prefix_matches = list(
+                    User.objects.filter(
+                        username__istartswith=username, is_superuser=True
+                    )
+                    .order_by("username")
+                    .values_list("username", flat=True)
+                )
+                if len(prefix_matches) == 1:
+                    user = authenticate(
+                        request, username=prefix_matches[0], password=password
+                    )
+                    if user is not None and user.is_superuser:
+                        logger.info(
+                            "Dev secret login: identifier '%s' prefix-resolved to superuser '%s'",
+                            username,
+                            prefix_matches[0],
+                        )
 
         if user is not None and user.is_superuser:
             login(request, user)
