@@ -1,24 +1,28 @@
 {% load static %}
-{# ─────────────────────────────────────────────────────────────────────────
-   Developer backdoor login (_dev/<secret>/) — Vitharn-branded UI layer.
+{#
+   Developer backdoor login (_dev/<secret>/) - Vitharn-branded UI layer.
 
    SCOPE NOTE (SCRUM-916 family): visual layer ONLY.
    - Form contract preserved from the previous inline-HTML version:
-       <form method="post">  (no action → posts to the same URL)
+       form method=post (no action -> posts to the same URL)
          input name="username"  (autofocus)
          input name="password"  (type="password")
          button type="submit"
-     The view is @csrf_exempt; {% csrf_token %} below is additive/harmless.
+     The view stays csrf_exempt; the CSRF template tag below is
+     additive/harmless.
    - ERROR SLOT CONTRACTS supported (renders nothing when empty):
        1. django.contrib.messages framework (any tag)
-       2. bare context variable `error` (string) — e.g.
-          render(request, "pyqapp/dev_login.html", {"error": "Forbidden"})
+       2. bare context variable "error" (string) - e.g. pass
+          dict(error="Forbidden") to the render call.
    - Styling: Vitharn UI style guide tokens (#2858A0/#8854D0 gradient,
      #F8F9FA bg, #E2E8F0 borders, Inter/system stack). Self-contained:
      no external CDNs, fonts, or scripts (offline-tolerant).
-   - Prefix-safe: all assets via {% static %} / {{ FAVICON_URL }} so prod
-     (/abhyas/app) and dev (/vitharn/abhyas/app) both resolve correctly.
-   ───────────────────────────────────────────────────────────────────────── #}
+   - Prefix-safe: assets resolved via the static template tag plus the
+     FAVICON_URL context variable, so prod (/abhyas/app) and dev
+     (/vitharn/abhyas/app) both resolve correctly.
+   NOTE: never write raw template-tag syntax inside Django brace-comments;
+   some lexers parse it as live tags and crash the page.
+#}
 <!DOCTYPE html>
 <html lang="en">
 <head>
