@@ -26,7 +26,11 @@ class AbhyasStaticSitemap(Sitemap):
         return ['index', 'public_paper_list', 'public_iq_list']
 
     def location(self, item):
-        return {'index': '/', 'public_paper_list': '/papers/', 'public_iq_list': '/important-questions/'}[item]
+        return {
+            'index': '/abhyas/app/',
+            'public_paper_list': '/abhyas/app/papers/',
+            'public_iq_list': '/abhyas/app/important-questions/',
+        }[item]
 
     def get_urls(self, page=1, site=None, protocol=None):
         return super().get_urls(page=page, site=site, protocol='https')
@@ -42,7 +46,7 @@ class AbhyasPaperSitemap(Sitemap):
         return Paper.objects.filter(is_public=True).order_by('-uploaded_at')
 
     def location(self, obj):
-        return f"/papers/{obj.id}/"
+        return f"/abhyas/app/papers/{obj.id}/"
 
     def lastmod(self, obj):
         return obj.uploaded_at
@@ -57,7 +61,7 @@ class AbhyasQuestionSitemap(Sitemap):
         return ImportantQuestionEntry.objects.filter(is_public=True).order_by('-uploaded_at')
 
     def location(self, obj):
-        return f"/important-questions/{obj.id}/"
+        return f"/abhyas/app/important-questions/{obj.id}/"
 
     def lastmod(self, obj):
         return obj.uploaded_at
