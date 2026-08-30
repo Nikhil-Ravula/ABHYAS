@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [krishna]
+    branches: [development-v1, deployment-v1, main, krishna]
     paths-ignore:
       - 'AGENTS.md'
       - 'docs/**'
@@ -17,6 +17,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Django safety checks
+        env:
+          ENVIRONMENT: local
+          SECRET_KEY: ci-validation-only
+          ALLOWED_HOSTS: localhost,127.0.0.1,testserver,vitharn.com
+        run: |
+          python -m venv /tmp/abhyas-ci-venv
+          /tmp/abhyas-ci-venv/bin/pip install -r requirements-local.txt
+          /tmp/abhyas-ci-venv/bin/python manage.py check
+          /tmp/abhyas-ci-venv/bin/python manage.py makemigrations --check --dry-run
+          /tmp/abhyas-ci-venv/bin/python manage.py test pyqapp --verbosity 1
 
       - name: Compute short SHA
         run: echo "SHORT_SHA=$(echo ${GITHUB_SHA} | cut -c1-7)" >> "$GITHUB_ENV"
@@ -41,8 +58,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/vitharn-hq/abhyas:latest
-            ghcr.io/vitharn-hq/abhyas:sha-${{ env.SHORT_SHA }}
+            ghcr.io/vitharn-hq/abhyas-api:latest
+            ghcr.io/vitharn-hq/abhyas-api:sha-${{ env.SHORT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       # Watchtower on the VPS (abhyas_watchtower in vps-docker-compose.yml)
