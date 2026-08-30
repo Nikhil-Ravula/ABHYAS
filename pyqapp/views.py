@@ -29,6 +29,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.html import escape
+from django.utils.text import slugify
 from django.utils import timezone
 from django.core.cache import cache
 
@@ -68,6 +69,74 @@ from .models import (
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+
+def _record_login_session(request, user):
+    """Persist the active session for single-device enforcement and metrics."""
+    session_record, _ = UserSession.objects.get_or_create(user=user)
+    session_record.session_key = request.session.session_key
+    session_record.login_count = F('login_count') + 1
+    session_record.save(update_fields=['session_key', 'login_count', 'logged_in_at'])
+    session_record.refresh_from_db(fields=['login_count'])
+
+
+def _public_schema_json(payload):
+    """Serialize public metadata safely for an application/ld+json block."""
+    return json.dumps(payload, ensure_ascii=False).replace('<', '\\u003c')
+
+
+def public_paper_list(request):
+    papers = Paper.objects.filter(is_public=True).order_by('-uploaded_at')
+    return render(request, 'pyqapp/public_paper_list.html', {'papers': papers})
+
+
+def public_paper_detail(request, paper_id):
+    paper = get_object_or_404(Paper, id=paper_id, is_public=True)
+    canonical = request.build_absolute_uri()
+    schema = _public_schema_json({
+        '@context': 'https://schema.org',
+        '@type': 'LearningResource',
+        'name': f'{paper.subject} {paper.year} {paper.get_paper_type_display()} question paper',
+        'description': f'Previous year {paper.subject} question paper for {paper.year}, {paper.get_paper_type_display()} examination, {paper.regulation} regulation.',
+        'url': canonical,
+        'learningResourceType': 'Exam paper',
+        # The metadata page is public, while the uploaded file remains behind
+        # authentication; do not claim the file itself is freely accessible.
+        'isAccessibleForFree': False,
+        'provider': {'@type': 'Organization', 'name': 'Abhyas by Vitharn', 'url': 'https://vitharn.com/abhyas'},
+    })
+    return render(request, 'pyqapp/public_paper_detail.html', {
+        'paper': paper,
+        'page_title': f'{paper.subject} {paper.year} question paper — Abhyas',
+        'page_description': f'Previous year {paper.subject} question paper for {paper.year}, {paper.get_paper_type_display()} examination.',
+        'canonical_url': canonical, 'schema_json': schema,
+    })
+
+
+def public_iq_list(request):
+    questions = ImportantQuestionEntry.objects.filter(is_public=True).order_by('subject', 'unit', 'question_number')
+    return render(request, 'pyqapp/public_iq_list.html', {'questions': questions})
+
+
+def public_iq_detail(request, question_id):
+    question = get_object_or_404(ImportantQuestionEntry, id=question_id, is_public=True)
+    canonical = request.build_absolute_uri()
+    schema = _public_schema_json({
+        '@context': 'https://schema.org',
+        '@type': 'Question',
+        'name': question.question_text or f'{question.subject} important question {question.question_number}',
+        'text': question.question_text,
+        'url': canonical,
+        'about': question.subject,
+        'isAccessibleForFree': True,
+        'provider': {'@type': 'Organization', 'name': 'Abhyas by Vitharn', 'url': 'https://vitharn.com/abhyas'},
+    })
+    return render(request, 'pyqapp/public_iq_detail.html', {
+        'question': question,
+        'page_title': f'{question.subject} important question — Abhyas',
+        'page_description': question.question_text or f'Important {question.subject} revision question.',
+        'canonical_url': canonical, 'schema_json': schema,
+    })
 
 
 # ── Rate Limiting Helpers ───────────────────────────────────────────────────
@@ -442,6 +511,7 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            _record_login_session(request, user)
             if user.is_superuser:
                 return redirect('admin_log')
             if user.is_staff:

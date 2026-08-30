@@ -1,7 +1,18 @@
 from django.contrib import admin
-from .models import Paper, Ticket, TicketReply, UserSession, ActivityLog
+from .models import Paper, Ticket, TicketReply, UserSession, ActivityLog, ImportantQuestionEntry
 
-admin.site.register(Paper)
+@admin.register(Paper)
+class PaperAdmin(admin.ModelAdmin):
+    list_display = ('subject', 'year', 'paper_type', 'regulation', 'is_public', 'uploaded_at')
+    list_filter = ('is_public', 'paper_type', 'regulation')
+    search_fields = ('subject', 'branch', 'hashtags')
+
+
+@admin.register(ImportantQuestionEntry)
+class ImportantQuestionAdmin(admin.ModelAdmin):
+    list_display = ('subject', 'unit', 'question_number', 'is_public', 'uploaded_at')
+    list_filter = ('is_public', 'regulation', 'question_type')
+    search_fields = ('subject', 'question_text', 'hashtags')
 admin.site.register(Ticket)
 admin.site.register(TicketReply)
 admin.site.register(ActivityLog)

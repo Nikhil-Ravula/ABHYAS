@@ -84,8 +84,8 @@ def main():
 
     # ── Step 2: Install dependencies (LOCAL only) ──
     print("\n📥 Installing local dependencies...")
-    run(f{venv_pip} install --upgrade pip --quiet)
-    run(f{venv_pip} install -r {REQ_FILE})
+    run(f"{venv_pip} install --upgrade pip --quiet")
+    run(f"{venv_pip} install -r {REQ_FILE}")
 
     # ── Step 3: Copy .env (force ENVIRONMENT=local) ──
     if not ENV_FILE.exists():
@@ -120,12 +120,12 @@ def main():
 
     # ── Step 4: Run migrations (SQLite) ──
     print("\n🗄️  Running migrations...")
-    run(f{venv_python} manage.py migrate)
+    run(f"{venv_python} manage.py migrate")
 
     # ── Step 5: Create superuser ──
     print("\n👤 Superuser setup (Ctrl+C to skip)...")
     try:
-        run(f{venv_python} manage.py createsuperuser, check=False)
+        run(f"{venv_python} manage.py createsuperuser", check=False)
     except (KeyboardInterrupt, SystemExit):
         print("\n   Skipped superuser creation.")
 

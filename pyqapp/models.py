@@ -30,6 +30,9 @@ class Paper(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     # Display name shown to students (empty = use uploaded_by.username)
     display_name = models.CharField(max_length=150, blank=True, default='')
+    # Explicit opt-in: uploaded papers are private until staff marks metadata
+    # public for search discovery. The file itself remains auth-protected.
+    is_public = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.subject} ({self.year})"
@@ -76,6 +79,9 @@ class ImportantQuestionEntry(models.Model):
     question_text = models.TextField(blank=True)
     file = models.FileField(upload_to='iq/', blank=True, null=True)
     original_filename = models.CharField(max_length=255, blank=True)
+    # Explicit opt-in for public question previews; default keeps existing
+    # student uploads private.
+    is_public = models.BooleanField(default=False)
     
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(auto_now_add=True)

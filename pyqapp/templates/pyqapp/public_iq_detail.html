@@ -1,0 +1,3 @@
+{% load static %}{% include 'pyqapp/public_meta.html' with page_title=page_title page_description=page_description canonical_url=canonical_url schema_json=schema_json %}
+<main class="container"><p><a href="{% url 'public_iq_list' %}">← All important questions</a></p><h1>{{ question.subject }} — Unit {{ question.unit }}</h1><p>{{ question.regulation }} · {{ question.branch }} · Question {{ question.question_number }}</p><h2>Question</h2><p>{{ question.question_text|linebreaksbr }}</p><p><a href="{% url 'login' %}">Sign in to Abhyas for more exam-preparation tools.</a></p></main>
+</body></html>

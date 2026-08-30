@@ -1,0 +1,3 @@
+{% load static %}{% include 'pyqapp/public_meta.html' with page_title='Previous Year Question Papers — Abhyas' page_description='Browse public previous year question papers by subject, year, paper type and regulation.' canonical_url='https://vitharn.com/abhyas/app/papers/' %}
+<main class="container"><h1>Previous Year Question Papers</h1><p>Public exam-paper metadata from Abhyas. Sign in to view or download files.</p>{% for paper in papers %}<article><h2><a href="{% url 'public_paper_detail' paper.id %}">{{ paper.subject }} — {{ paper.year }}</a></h2><p>{{ paper.get_paper_type_display }} · {{ paper.regulation }} · {{ paper.branch }}</p></article>{% empty %}<p>No public papers are available yet.</p>{% endfor %}</main>
+</body></html>
