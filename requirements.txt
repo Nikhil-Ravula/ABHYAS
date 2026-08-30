@@ -21,6 +21,8 @@ boto3==1.35.0
 django-cors-headers==4.7.0
 cloudinary==1.44.2
 django-cloudinary-storage==0.3.0
-git+https://github.com/Safacts/Nidhi.git@deployment-v1#subdirectory=nidhi-sdk
+# Public SDK source; the old Safacts/Nidhi subdirectory URL requires private
+# repository credentials and cannot be cloned by CI or clean production builds.
+nidhi-sdk @ git+https://github.com/Safacts/nidhi-sdk.git
 PyJWT==2.10.1
 cryptography==46.0.3
