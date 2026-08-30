@@ -21,6 +21,12 @@ from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
 from pyqapp.sitemaps import AbhyasStaticSitemap, AbhyasPaperSitemap, AbhyasQuestionSitemap
 
+
+def sitemap_for_crawlers(request, *args, **kwargs):
+    response = sitemap(request, *args, **kwargs)
+    response.headers.pop('X-Robots-Tag', None)
+    return response
+
 sitemaps = {
     'static': AbhyasStaticSitemap,
     'papers': AbhyasPaperSitemap,
@@ -31,7 +37,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # Child sitemap at /abhyas/app/sitemap.xml; private account routes are excluded.
     # nginx proxies /abhyas/sitemap.xml? -> needs host nginx mapping; direct at /sitemap.xml works for app mount
-    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    path('sitemap.xml', sitemap_for_crawlers, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('', include('pyqapp.urls')),
 ]
 
