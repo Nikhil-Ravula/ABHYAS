@@ -263,23 +263,25 @@ LOGGING = {
     },
 }
 
-# ── Rubix HQ Hub Integration (SCRUM-1026 B+C, 10-09-2026) ─────────────────
-# Mirror: POST to https://novamymentor.in/api/hq/users/sync source_app="abhyas"
-# ENTER: GET /api/auth/hq-callback?hq_token=<JWT RS256 60s iss=novamymentor.in aud=abhyas>
-HQ_SYNC_URL = os.environ.get('HQ_SYNC_URL', 'https://novamymentor.in/api/hq/users/sync')
-HQ_SYNC_SECRET = os.environ.get('HQ_SYNC_SECRET') or os.environ.get('HQ_HUB_SYNC_SECRET') or os.environ.get('HQ_SSO_SYNC_SECRET') or ''
-HQ_SSO_ISSUER = os.environ.get('HQ_SSO_ISSUER', 'https://novamymentor.in')
-HQ_SSO_AUD = os.environ.get('HQ_SSO_AUD', 'abhyas')
-# Public key fallback derived from HQ prod oidc_rsa.key (rubix_web:/app/oidc_rsa.key) 10-09-2026
-HQ_JWT_PUBLIC_KEY = os.environ.get('HQ_JWT_PUBLIC_KEY', """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy3WR+o9dqST5W+LEvDFJ
-bm1DmMJDYHOnVPBveBTpioqKb6N1WPhjn3H7j3l3uV5uNHh/xLy00bmjGQQDHCCh
-jEd5bQ7zsraVSCmFEVwu3819F5JKM5l5simBOLQE22magy8pOX/36Wmc4p5ol0Ui
-qvb7fYoSFsPcetZM5UOVVQFB148yFgqne4u1kNhyFCHGHXKpAtPWkYVMk0bXVPFk
-7zJxABKA5iUWFZtBPMe/9jT2UZnzwl4BPP/UpJ3e1kodWIgGuzeErbmqMHhmDl/u
-0BzKq4X2/PQ5/LDyhEo8i6CoWIFG9ssyqVS8CDVnQ/E0X240wh6hISH5TcB1cRsY
-hwIDAQAB
------END PUBLIC KEY-----""")
+# ── Rubix HQ Hub Integration (SCRUM-1026, 10-09-2026) ─────────────────────
+# Mirror endpoint and secret are Kavach/environment-backed. The ENTER public
+# key has no source fallback: production must provision HQ_JWT_PUBLIC_KEY.
+HQ_SYNC_URL = os.environ.get(
+    'HQ_SYNC_URL', 'https://novamymentor.in/api/hq/users/sync'
+)
+HQ_SYNC_SECRET = (
+    os.environ.get('HQ_SYNC_SECRET')
+    or os.environ.get('HQ_HUB_SYNC_SECRET')
+    or os.environ.get('HQ_SSO_SYNC_SECRET')
+    or ''
+)
+HQ_JWT_PUBLIC_KEY = (
+    os.environ.get('HQ_JWT_PUBLIC_KEY')
+    or os.environ.get('HQ_SSO_PUBLIC_KEY')
+    or ''
+)
+HQ_SSO_RATE_LIMIT = 20
+HQ_SSO_RATE_WINDOW_SECONDS = 60
 
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 os.makedirs(LOGS_DIR, exist_ok=True)

@@ -1,229 +1,298 @@
-"""
-HQ SSO ENTER callback for Abhyas — accepts HQ JWT (RS256).
+"""Secure Rubix HQ ENTER callback for Abhyas.
 
-HQ contract: POST /dashboard/sso/enter/abhyas/ on HQ (login_required) → 302 to
-  https://vitharn.com/abhyas/app/api/auth/hq-callback?hq_token=<JWT RS256 60s>
-Abhyas must verify:
-  - RS256 signature with HQ public key (oidc_rsa.key)
-  - iss=https://novamymentor.in, aud=abhyas, exp/iat (60s TTL), jti replay (cache 70s)
-  - jti single-use via cache key hq_nonce_<jti> (70s)
-Then find/create local User by email (iexact) then username (sub), set_unusable_password,
-login, redirect to links/admin_log/staff.
-
-GET only. Mirrors HQ dashboard/sso views 263-583 (HQ_SSO_TTL_SECONDS=60, NONCE_TTL=70).
+HQ sends a short-lived RS256 JWT to ``/api/auth/hq-callback/``. The callback
+verifies the fixed HQ issuer/audience and the exact RS256 algorithm, enforces a
+60-second claim window, rate-limits callback attempts, atomically consumes the
+JWT ``jti`` for 70 seconds, and only then establishes a Django session.
 """
+
+import hashlib
 import logging
 import re
+import time
+from datetime import timedelta
+from urllib.parse import urlencode
 
 import jwt as pyjwt
 from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
-from django.views.decorators.http import require_http_methods
+from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+
+from .hq_sync import sync_user_to_hq
+from .models import HQSSONonce
+
 
 logger = logging.getLogger("pyqapp.hq_sso")
 
-HQ_JWT_TTL = 70  # seconds, allow slight slack over HQ 60s
-HQ_NONCE_TTL = 70
-HQ_JTI_CACHE_PREFIX = "hq_nonce_"
-HQ_ISSUER = "https://novamymentor.in"
-HQ_AUD = "abhyas"
+HQ_SSO_ISSUER = "https://novamymentor.in"
+HQ_SSO_AUDIENCE = "abhyas"
+HQ_SSO_TTL_SECONDS = 60
+HQ_SSO_NONCE_TTL_SECONDS = 70
+HQ_SSO_RATE_LIMIT = 20
+HQ_SSO_RATE_WINDOW_SECONDS = 60
+_JTI_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+
+
+def _no_store(response):
+    """Prevent callback URLs or authentication redirects being cached/reused."""
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response["Pragma"] = "no-cache"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+def _auth_error_response():
+    location = f"{settings.LOGIN_URL}?{urlencode({'auth_error': '1'})}"
+    return _no_store(HttpResponseRedirect(location))
 
 
 def _get_public_key():
-    key = getattr(settings, "HQ_JWT_PUBLIC_KEY", "") or ""
-    if key and "BEGIN PUBLIC KEY" in key:
-        return key.strip()
-    # fallback hard-coded (same as settings default)
-    return """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy3WR+o9dqST5W+LEvDFJ
-bm1DmMJDYHOnVPBveBTpioqKb6N1WPhjn3H7j3l3uV5uNHh/xLy00bmjGQQDHCCh
-jEd5bQ7zsraVSCmFEVwu3819F5JKM5l5simBOLQE22magy8pOX/36Wmc4p5ol0Ui
-qvb7fYoSFsPcetZM5UOVVQFB148yFgqne4u1kNhyFCHGHXKpAtPWkYVMk0bXVPFk
-7zJxABKA5iUWFZtBPMe/9jT2UZnzwl4BPP/UpJ3e1kodWIgGuzeErbmqMHhmDl/u
-0BzKq4X2/PQ5/LDyhEo8i6CoWIFG9ssyqVS8CDVnQ/E0X240wh6hISH5TcB1cRsY
-hwIDAQAB
------END PUBLIC KEY-----"""
+    """Read the HQ public key from Kavach/environment-backed settings.
 
-
-def _sanitize_username(base):
-    """Sanitize to ^[a-zA-Z0-9._@+\\-] like HQ, fallback to alphanum."""
-    if not base:
+    There is intentionally no embedded key or development fallback. A missing
+    key must make the callback unusable rather than silently weaken
+    authentication.
+    """
+    configured = getattr(settings, "HQ_JWT_PUBLIC_KEY", "")
+    if not isinstance(configured, str):
         return ""
-    # HQ sanitizes local-part allow list; replicate looser
-    sanitized = re.sub(r'[^a-zA-Z0-9._@+\-]', '', base)
-    return sanitized[:150] or "hquser"
+    key = configured.strip()
+    if not key:
+        return ""
+    if "BEGIN PUBLIC KEY" not in key and "BEGIN RSA PUBLIC KEY" not in key:
+        return ""
+    return key
 
 
-def _derive_username(email, sub):
-    """Prefer sub, fallback to email local-part sanitized."""
-    if sub:
-        u = _sanitize_username(sub)
-        if u:
-            return u
-    if email and "@" in email:
-        local = email.split("@")[0]
-        return _sanitize_username(local) or "hquser"
-    return "hquser"
+def _client_rate_limit_key(request):
+    """Hash the server-observed peer address before using it in a cache key."""
+    peer = request.META.get("REMOTE_ADDR") or "unknown"
+    digest = hashlib.sha256(peer.encode("utf-8", "replace")).hexdigest()
+    return f"abhyas_hq_sso_rate:{digest}"
+
+
+def _allow_callback_attempt(request):
+    """Allow at most 20 callback attempts per peer per minute.
+
+    Cache availability is part of the security boundary: if the counter cannot
+    be atomically maintained, reject the request rather than fail open.
+    """
+    try:
+        limit = int(getattr(settings, "HQ_SSO_RATE_LIMIT", HQ_SSO_RATE_LIMIT))
+        window = int(
+            getattr(
+                settings,
+                "HQ_SSO_RATE_WINDOW_SECONDS",
+                HQ_SSO_RATE_WINDOW_SECONDS,
+            )
+        )
+        if limit < 1 or window < 1:
+            return False
+
+        key = _client_rate_limit_key(request)
+        if cache.add(key, 1, timeout=window):
+            return True
+        count = cache.incr(key)
+        return count <= limit
+    except Exception:
+        logger.error("HQ SSO rate-limit cache unavailable; rejecting callback")
+        return False
+
+
+def _valid_claim_window(payload):
+    """Require integer iat/exp and an active window of no more than 60 seconds."""
+    iat = payload.get("iat")
+    exp = payload.get("exp")
+    if (
+        isinstance(iat, bool)
+        or isinstance(exp, bool)
+        or not isinstance(iat, int)
+        or not isinstance(exp, int)
+    ):
+        return False
+
+    now = int(time.time())
+    return (
+        iat <= now
+        and exp > now
+        and 0 < exp - iat <= HQ_SSO_TTL_SECONDS
+    )
+
+
+def _valid_jti(value):
+    return isinstance(value, str) and bool(_JTI_PATTERN.fullmatch(value))
+
+
+def _reserve_jti(jti):
+    """Atomically reserve a signed JTI for the complete 70-second window."""
+    now = timezone.now()
+    try:
+        with transaction.atomic():
+            HQSSONonce.objects.filter(expires_at__lte=now).delete()
+            HQSSONonce.objects.create(
+                jti_digest=hashlib.sha256(jti.encode("utf-8")).hexdigest(),
+                expires_at=now + timedelta(seconds=HQ_SSO_NONCE_TTL_SECONDS),
+            )
+    except IntegrityError:
+        # Unique constraint means another worker has already consumed it.
+        return "replay"
+    except Exception:
+        logger.error("HQ SSO replay database unavailable; rejecting callback")
+        return "unavailable"
+    return "reserved"
+
+
+def _sanitize_username(value):
+    if not isinstance(value, str):
+        return ""
+    sanitized = re.sub(r"[^a-zA-Z0-9._@+\-]", "", value)
+    return sanitized[:150]
+
+
+def _derive_username(email, subject):
+    base = _sanitize_username(subject)
+    if not base and isinstance(email, str) and "@" in email:
+        base = _sanitize_username(email.split("@", 1)[0])
+    return base or "hquser"
+
+
+def _find_or_create_user(subject, email):
+    """Resolve the signed HQ identity without overwriting local profile data."""
+    user = User.objects.filter(email__iexact=email).first() if email else None
+    if not user:
+        user = User.objects.filter(username__iexact=subject).first()
+    if user:
+        return user
+
+    base_username = _derive_username(email, subject)
+    for suffix in range(0, 101):
+        candidate = base_username if suffix == 0 else f"{base_username}{suffix}"
+        if not User.objects.filter(username__iexact=candidate).exists():
+            try:
+                user = User(username=candidate, email=email)
+                user.set_unusable_password()
+                user.is_active = True
+                user.save(force_insert=True)
+                return user
+            except IntegrityError:
+                # A concurrent callback may have won the unique username race.
+                user = User.objects.filter(username__iexact=candidate).first()
+                if user:
+                    return user
+                continue
+
+    raise ValueError("could not allocate a local username")
+
+
+def _redirect_for_user(user):
+    if user.is_superuser:
+        target = reverse("admin_log")
+    elif user.is_staff:
+        target = reverse("staff_dashboard")
+    else:
+        target = reverse("links")
+    return _no_store(HttpResponseRedirect(target))
 
 
 @require_http_methods(["GET"])
 def hq_callback(request):
-    """
-    GET /api/auth/hq-callback?hq_token=<jwt>
-    Also accepts ?token= for compat.
+    """Validate one HQ ENTER token and establish the local Django session."""
+    if not _allow_callback_attempt(request):
+        logger.warning("HQ SSO callback rate-limited")
+        return _auth_error_response()
 
-    On success: login and redirect to app home (links / staff / admin_log).
-    On failure: redirect to LOGIN_URL?auth_error=1 (same as vitharn_login).
-    """
-    token = request.GET.get("hq_token") or request.GET.get("token") or request.GET.get("hqToken") or ""
-    token = token.strip()
-    if not token:
-        logger.warning("HQ callback missing hq_token ip=%s", request.META.get("REMOTE_ADDR", ""))
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
+    token = (request.GET.get("hq_token") or "").strip()
+    if not token or len(token) > 8192:
+        logger.warning("HQ SSO callback missing or oversized token")
+        return _auth_error_response()
 
     public_key = _get_public_key()
+    if not public_key:
+        logger.error("HQ SSO callback disabled: public key is not configured")
+        return _auth_error_response()
 
     try:
-        # Use PyJWT RS256 verification
         payload = pyjwt.decode(
             token,
             public_key,
             algorithms=["RS256"],
-            issuer=HQ_ISSUER,
-            audience=HQ_AUD,
+            issuer=HQ_SSO_ISSUER,
+            audience=HQ_SSO_AUDIENCE,
+            leeway=0,
             options={
                 "verify_signature": True,
                 "verify_exp": True,
+                "verify_iat": True,
                 "verify_iss": True,
                 "verify_aud": True,
                 "require": ["exp", "iat", "iss", "aud", "sub", "jti"],
             },
         )
-    except pyjwt.ExpiredSignatureError as e:
-        logger.warning("HQ callback expired token: %s", e)
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-    except pyjwt.InvalidIssuerError as e:
-        logger.warning("HQ callback bad issuer: %s", e)
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-    except pyjwt.InvalidAudienceError as e:
-        logger.warning("HQ callback bad audience: %s aud expected %s err=%s", token[:20], HQ_AUD, e)
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-    except pyjwt.InvalidTokenError as e:
-        logger.warning("HQ callback invalid token: %s", e)
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-    except Exception as e:
-        logger.exception("HQ callback unexpected decode error: %s", e)
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
+    except (pyjwt.PyJWTError, ValueError, TypeError):
+        # Never log the bearer token or decoder details that might echo it.
+        logger.warning("HQ SSO callback token rejected")
+        return _auth_error_response()
 
-    # TTL sanity: HQ issues 60s, we allow up to 70s
+    if not isinstance(payload, dict) or not _valid_claim_window(payload):
+        logger.warning("HQ SSO callback claim window rejected")
+        return _auth_error_response()
+
+    jti = payload.get("jti")
+    if not _valid_jti(jti):
+        logger.warning("HQ SSO callback jti rejected")
+        return _auth_error_response()
+
+    reservation = _reserve_jti(jti)
+    if reservation != "reserved":
+        if reservation == "replay":
+            logger.warning("HQ SSO callback replay rejected")
+        else:
+            logger.error("HQ SSO replay protection unavailable; rejecting callback")
+        return _auth_error_response()
+
+    subject = payload.get("sub")
+    email = payload.get("email", "")
+    if (
+        not isinstance(subject, str)
+        or not subject.strip()
+        or len(subject.strip()) > 150
+        or not isinstance(email, str)
+        or len(email.strip()) > 254
+    ):
+        logger.warning("HQ SSO callback identity claims rejected")
+        return _auth_error_response()
+
+    subject = subject.strip()
+    email = email.strip().lower()
     try:
-        iat = int(payload.get("iat", 0))
-        exp = int(payload.get("exp", 0))
-        if exp - iat > HQ_JWT_TTL + 5:  # slight slack
-            logger.warning("HQ callback TTL too large iat=%s exp=%s diff=%s", iat, exp, exp - iat)
-            return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-    except Exception:
-        pass
+        user = _find_or_create_user(subject, email)
+        if not user.is_active:
+            logger.warning("HQ SSO callback inactive user rejected")
+            return _auth_error_response()
 
-    jti = payload.get("jti", "")
-    if not jti:
-        logger.warning("HQ callback missing jti")
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-
-    # Replay protection: cache + single-use
-    cache_key = f"{HQ_JTI_CACHE_PREFIX}{jti}"
-    if cache.get(cache_key):
-        logger.warning("HQ callback replay jti=%s", jti)
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-    # mark used for 70s (HQ nonce TTL)
-    try:
-        cache.set(cache_key, payload.get("sub", ""), HQ_NONCE_TTL)
-    except Exception:
-        logger.warning("HQ callback cache set failed jti=%s", jti)
-
-    # Extract identity
-    sub = (payload.get("sub") or "").strip()
-    email = (payload.get("email") or "").strip()
-    role = payload.get("role") or payload.get("scope") or ""
-
-    # Normalize email
-    if email:
-        email = email.lower().strip()
-
-    # Lookup existing user: email iexact first, then username
-    user = None
-    if email:
-        user = User.objects.filter(email__iexact=email).first()
-    if not user and sub:
-        user = User.objects.filter(username__iexact=sub).first()
-
-    created = False
-    if not user:
-        # Derive username
-        base_username = _derive_username(email, sub)
-        username = base_username
-        suffix = 1
-        # Ensure uniqueness (case-insensitive check loop like HQ)
-        while User.objects.filter(username__iexact=username).exists():
-            username = f"{base_username}{suffix}"
-            suffix += 1
-            if suffix > 100:
-                username = f"{base_username}_{jti[:6]}"
-                break
-        # Create
-        try:
-            user = User.objects.create_user(
-                username=username,
-                email=email or f"{username}@hq.mirror.invalid",
-                password=None,
-            )
-            # set_unusable_password already via create_user with None? ensure
-            user.set_unusable_password()
-            # Try to fill first_name from sub if email missing? use sub
-            # role mapping: HQ founding_engineer vs employee — store as first_name? Not needed.
-            # Keep user active
-            user.is_active = True
-            # Optionally store role in first_name/last_name? Skip — could use profile.
-            user.save()
-            created = True
-            logger.info("HQ callback created user username=%s email=%s jti=%s role=%s", username, email, jti, role)
-        except Exception as e:
-            logger.exception("HQ callback user create failed sub=%s email=%s: %s", sub, email, e)
-            return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
-    else:
-        # Fill missing email if blank (don't overwrite)
-        if email and (not user.email or user.email.endswith("@hq.mirror.invalid")):
-            user.email = email
-            try:
-                user.save(update_fields=["email"])
-            except Exception:
-                pass
-        logger.info("HQ callback login existing user=%s jti=%s created=%s", user.username, jti, created)
-
-    # Log the user in
-    try:
         user.backend = "django.contrib.auth.backends.ModelBackend"
         login(request, user)
-    except Exception as e:
-        logger.exception("HQ callback login failed for %s: %s", user.username, e)
-        return HttpResponseRedirect(f"{settings.LOGIN_URL}?auth_error=1")
+        # Reuse Abhyas' single-device/session accounting for HQ ENTER logins.
+        from .views import _record_login_session
 
-    # Mirror to HQ is not needed (HQ is source) but we could no-op
-
-    # Redirect per role
-    try:
-        if user.is_superuser:
-            from django.urls import reverse
-            return HttpResponseRedirect(reverse("admin_log"))
-        if user.is_staff:
-            from django.urls import reverse
-            return HttpResponseRedirect(reverse("staff_dashboard"))
-        from django.urls import reverse
-        return HttpResponseRedirect(reverse("links"))
+        _record_login_session(request, user)
     except Exception:
-        # fallback to links path with prefix awareness? reverse should handle FORCE_SCRIPT_NAME
-        return HttpResponseRedirect("/links/")
+        logger.exception("HQ SSO callback local session setup failed")
+        return _auth_error_response()
+
+    # Keep HQ's ENTER login path covered by the same best-effort mirror contract
+    # as the local, Vitharn, and Aacharya authentication paths. The local
+    # session is already established, so a hub outage must never change the
+    # successful authentication result.
+    try:
+        sync_user_to_hq(user, request)
+    except Exception:
+        logger.exception("HQ user mirror scheduling failed after HQ ENTER")
+
+    return _redirect_for_user(user)

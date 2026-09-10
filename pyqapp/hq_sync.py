@@ -1,99 +1,160 @@
-"""
-HQ Hub Mirror — POST to https://novamymentor.in/api/hq/users/sync
+"""Best-effort user mirroring to the Rubix HQ hub.
 
-Called on signup/login after local user create/auth.
-Never blocks caller; logs only. Secret via settings.HQ_SYNC_SECRET (or env).
-Payload per .agents/rubix-it-solutions/hq-hub-contract.md:
-  username, email, source_app="abhyas", external_id=str(user.id), first_name, last_name
-Header: X-HQ-Sync-Secret (also supports Authorization: Bearer fallback on HQ side)
-
-Behaviour on HQ: 201 created, 200 updated, 401 bad secret, 429 rate-limit.
+The HQ endpoint is deliberately called from a short-lived daemon thread. A
+login or registration request must not wait for a remote service, and a hub
+outage must never turn into a local authentication failure. Secrets are read
+from Django settings (which are populated by Kavach) or the process
+environment; this module never supplies a secret fallback.
 """
+
 import logging
 import os
+import threading
+from urllib.parse import urlparse
+
 import requests
 from django.conf import settings
+
 
 logger = logging.getLogger("pyqapp.hq_sync")
 
 HQ_SOURCE_APP = "abhyas"
+HQ_SYNC_TIMEOUT_SECONDS = 5
+HQ_SYNC_PATH = "/api/hq/users/sync"
 
 
 def _get_sync_secret():
-    """Resolve secret from settings then env fallbacks."""
-    sec = getattr(settings, "HQ_SYNC_SECRET", "") or ""
-    if sec:
-        return sec.strip()
-    # fallback direct env (if settings not yet loaded or empty)
-    for k in ("HQ_SYNC_SECRET", "HQ_HUB_SYNC_SECRET", "HQ_SSO_SYNC_SECRET"):
-        v = os.environ.get(k, "").strip()
-        if v:
-            return v
+    """Resolve the Kavach/environment secret without providing a fallback."""
+    configured = getattr(settings, "HQ_SYNC_SECRET", "") or ""
+    if isinstance(configured, str) and configured.strip():
+        return configured.strip()
+
+    for name in ("HQ_SYNC_SECRET", "HQ_HUB_SYNC_SECRET", "HQ_SSO_SYNC_SECRET"):
+        value = os.environ.get(name, "")
+        if value.strip():
+            return value.strip()
     return ""
 
 
 def _get_sync_url():
-    return getattr(settings, "HQ_SYNC_URL", "https://novamymentor.in/api/hq/users/sync").strip()
+    """Return only the configured HTTPS HQ sync endpoint.
+
+    The hostname/path allow-list prevents a mistaken or attacker-controlled
+    setting from turning this background hook into an arbitrary HTTP client.
+    """
+    configured = getattr(
+        settings,
+        "HQ_SYNC_URL",
+        "https://novamymentor.in/api/hq/users/sync",
+    )
+    if not isinstance(configured, str):
+        return ""
+
+    url = configured.strip().rstrip("/")
+    parsed = urlparse(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "novamymentor.in"
+        or parsed.path != HQ_SYNC_PATH
+        or parsed.query
+        or parsed.fragment
+        or parsed.username
+        or parsed.password
+    ):
+        return ""
+    return url
+
+
+def _text_value(value, max_length):
+    """Convert a model field to bounded text for the outbound JSON payload."""
+    if value is None:
+        return ""
+    return str(value).strip()[:max_length]
+
+
+def _build_payload(user):
+    """Build the documented HQ mirror payload from a saved Django user."""
+    return {
+        "username": _text_value(getattr(user, "username", ""), 150),
+        "email": _text_value(getattr(user, "email", ""), 254),
+        "source_app": HQ_SOURCE_APP,
+        "app_key": HQ_SOURCE_APP,
+        "external_id": _text_value(getattr(user, "pk", ""), 128),
+        "first_name": _text_value(getattr(user, "first_name", ""), 150),
+        "last_name": _text_value(getattr(user, "last_name", ""), 150),
+    }
+
+
+def _post_user_to_hq(payload, url, secret):
+    """Perform the remote request inside the background worker only."""
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            headers={
+                "Content-Type": "application/json",
+                "X-HQ-Sync-Secret": secret,
+            },
+            timeout=HQ_SYNC_TIMEOUT_SECONDS,
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        # Do not include exception text: some HTTP client exceptions can carry
+        # request details. The user-facing auth flow is already complete.
+        logger.warning("HQ user mirror request failed")
+        return False, None, "request_failed"
+    except Exception:
+        logger.exception("HQ user mirror worker failed")
+        return False, None, "worker_failed"
+
+    if response.status_code in (200, 201):
+        logger.info("HQ user mirror completed status=%s", response.status_code)
+        return True, response.status_code, "ok"
+    if response.status_code == 401:
+        logger.warning("HQ user mirror rejected by hub")
+    elif response.status_code == 429:
+        logger.warning("HQ user mirror rate-limited by hub")
+    else:
+        logger.warning("HQ user mirror returned status=%s", response.status_code)
+    return False, response.status_code, "remote_rejected"
 
 
 def sync_user_to_hq(user, request=None):
-    """
-    Best-effort mirror user to HQ. Never raises.
-    Returns (ok:bool, status_code_or_none, body_snippet)
-    """
-    secret = _get_sync_secret()
-    url = _get_sync_url()
+    """Schedule a best-effort HQ mirror without delaying the caller.
 
+    Returns ``(scheduled, status_code, result)`` for callers/tests. The
+    worker itself catches all remote failures, so this function never raises
+    because HQ is unavailable. ``request`` is accepted for compatibility with
+    authentication views but is intentionally not sent to HQ.
+    """
+    del request
+
+    secret = _get_sync_secret()
     if not secret:
-        # In local mode without secret, HQ side allows bypass with warning — but we log and skip
-        if getattr(settings, "ENVIRONMENT", "") == "local":
-            logger.info("HQ sync skipped (no secret, local mode) for %s", getattr(user, "username", "?"))
-            return False, None, "no_secret_local"
-        logger.warning("HQ sync skipped: HQ_SYNC_SECRET not set for user %s", getattr(user, "username", "?"))
+        logger.warning("HQ user mirror skipped: sync secret is not configured")
         return False, None, "no_secret"
 
-    if not getattr(user, "username", None) and not getattr(user, "email", None):
-        logger.warning("HQ sync skipped: user has no username/email id=%s", getattr(user, "id", "?"))
+    url = _get_sync_url()
+    if not url:
+        logger.error("HQ user mirror skipped: endpoint configuration is invalid")
+        return False, None, "invalid_endpoint"
+
+    payload = _build_payload(user)
+    if not payload["username"] and not payload["email"]:
+        logger.warning("HQ user mirror skipped: user has no local identity")
         return False, None, "no_identity"
 
-    payload = {
-        "username": getattr(user, "username", "") or "",
-        "email": getattr(user, "email", "") or "",
-        "source_app": HQ_SOURCE_APP,
-        "app_key": HQ_SOURCE_APP,
-        "external_id": str(getattr(user, "id", "")),
-        "first_name": getattr(user, "first_name", "") or "",
-        "last_name": getattr(user, "last_name", "") or "",
-    }
-    # Prune empty username if only email — HQ derives from email local-part
-    if not payload["username"] and payload["email"]:
-        # leave empty, HQ will derive
-        pass
-
-    headers = {
-        "Content-Type": "application/json",
-        "X-HQ-Sync-Secret": secret,
-    }
-
     try:
-        # short timeout, never block login
-        resp = requests.post(url, json=payload, headers=headers, timeout=5)
-        # log redacted secret presence only
-        if resp.status_code in (200, 201):
-            logger.info("HQ sync ok user=%s status=%s source=%s", payload["username"] or payload["email"], resp.status_code, HQ_SOURCE_APP)
-            return True, resp.status_code, resp.text[:300]
-        elif resp.status_code == 401:
-            logger.warning("HQ sync 401 unauthorized (bad secret) for %s url=%s", payload["username"], url)
-            return False, 401, resp.text[:300]
-        elif resp.status_code == 429:
-            logger.warning("HQ sync 429 rate-limited for %s", payload["username"])
-            return False, 429, resp.text[:300]
-        else:
-            logger.warning("HQ sync unexpected %s for %s: %s", resp.status_code, payload["username"], resp.text[:500])
-            return False, resp.status_code, resp.text[:300]
-    except requests.RequestException as e:
-        logger.warning("HQ sync request failed for %s: %s", payload.get("username") or payload.get("email"), e)
-        return False, None, str(e)[:300]
-    except Exception as e:
-        logger.exception("HQ sync unexpected error for %s: %s", payload.get("username"), e)
-        return False, None, str(e)[:300]
+        worker = threading.Thread(
+            target=_post_user_to_hq,
+            args=(payload, url, secret),
+            name="abhyas-hq-user-mirror",
+            daemon=True,
+        )
+        worker.start()
+    except Exception:
+        # Scheduling is best-effort too; local login/signup has already won.
+        logger.exception("HQ user mirror could not be scheduled")
+        return False, None, "schedule_failed"
+
+    return True, None, "scheduled"

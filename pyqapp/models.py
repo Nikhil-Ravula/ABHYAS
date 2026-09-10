@@ -178,6 +178,17 @@ class UserSession(models.Model):
             self.save(update_fields=['session_key'])
 
 
+class HQSSONonce(models.Model):
+    """Single-use HQ ENTER token reservation shared by all web workers."""
+
+    jti_digest = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"HQ SSO nonce expires {self.expires_at:%Y-%m-%d %H:%M:%S}"
+
+
 class ActivityLog(models.Model):
     """
     Tracks user activity (login, logout, searches) for admin PDF reports.

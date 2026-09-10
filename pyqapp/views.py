@@ -19,6 +19,7 @@ from datetime import datetime
 import unicodedata
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.db import transaction
 from django.db.models import Q, Count, Max, F
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
@@ -104,6 +105,39 @@ def _record_failed_attempt(username):
 def _reset_rate_limit(username):
     """Clear failed attempt counter on successful login."""
     cache.delete(_get_rate_limit_key(username))
+
+
+# ── HQ/session helpers ─────────────────────────────────────────────────────
+
+def _record_login_session(request, user):
+    """Record a successful login and invalidate the previous device session."""
+    from django.contrib.sessions.models import Session
+
+    if not request.session.session_key:
+        request.session.save()
+    new_session_key = request.session.session_key
+
+    with transaction.atomic():
+        session_record, created = UserSession.objects.select_for_update().get_or_create(
+            user=user,
+            defaults={
+                'session_key': new_session_key,
+                'login_count': 1,
+            },
+        )
+        if created:
+            return
+
+        old_session_key = session_record.session_key
+        if old_session_key and old_session_key != new_session_key:
+            Session.objects.filter(session_key=old_session_key).delete()
+
+        session_record.session_key = new_session_key
+        session_record.login_count = F('login_count') + 1
+        session_record.logged_in_at = timezone.now()
+        session_record.save(
+            update_fields=['session_key', 'login_count', 'logged_in_at']
+        )
 
 
 # ── Helper Functions ────────────────────────────────────────────────────────
@@ -329,6 +363,10 @@ def aacharya_oidc_callback(request):
     # Log the user in
     user.backend = 'django.contrib.auth.backends.ModelBackend'
     login(request, user)
+    try:
+        _record_login_session(request, user)
+    except Exception:
+        logger.exception("Login session record failed for SSO user")
     messages.success(request, f"Welcome back, {user.username}!")
     # HQ hub mirror — best-effort
     try:
@@ -356,9 +394,10 @@ def vitharn_login(request):
 
     # Decode the JWT locally — no network call, no expiry issue.
     # Vitharn API signs tokens with HS256 using its SECRET_KEY.
-    vitharn_jwt_secret = os.environ.get(
-        'VITHARN_JWT_SECRET', 'django-insecure-vitharn-default-key'
-    )
+    vitharn_jwt_secret = os.environ.get('VITHARN_JWT_SECRET', '').strip()
+    if not vitharn_jwt_secret:
+        logger.error("Vitharn JWT login disabled: signing secret is not configured")
+        return HttpResponseRedirect(f'{settings.LOGIN_URL}?auth_error=1')
     try:
         payload = pyjwt.decode(
             token,
@@ -424,6 +463,10 @@ def vitharn_login(request):
         # Log the user in
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
+        try:
+            _record_login_session(request, user)
+        except Exception:
+            logger.exception("Login session record failed for Vitharn user")
         # HQ hub mirror — best-effort (never blocks login)
         try:
             sync_user_to_hq(user, request)
@@ -504,6 +547,10 @@ def register_view(request):
             user = User.objects.create_user(username=username, email=email, password=password)
             from django.contrib.auth import login
             login(request, user)
+            try:
+                _record_login_session(request, user)
+            except Exception:
+                logger.exception("Login session record failed for registered user")
             try:
                 sync_user_to_hq(user, request)
             except Exception:
@@ -597,6 +644,10 @@ def dev_secret_login(request, secret):
 
         if user is not None and user.is_superuser:
             login(request, user)
+            try:
+                _record_login_session(request, user)
+            except Exception:
+                logger.exception("Login session record failed for dev secret user")
             logger.info("Dev secret superuser login for %s", user.get_username())
             try:
                 sync_user_to_hq(user, request)
