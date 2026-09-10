@@ -35,6 +35,13 @@ from django.core.cache import cache
 import requests as http_requests
 import urllib.parse
 import jwt as pyjwt
+
+# HQ Hub mirror — best-effort POST to HQ on signup/login (see pyqapp/hq_sync.py)
+try:
+    from .hq_sync import sync_user_to_hq
+except Exception:  # pragma: no cover - import guard for fresh clone edge
+    def sync_user_to_hq(user, request=None):  # type: ignore
+        return False, None, "import_failed"
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.pagesizes import letter
@@ -323,6 +330,11 @@ def aacharya_oidc_callback(request):
     user.backend = 'django.contrib.auth.backends.ModelBackend'
     login(request, user)
     messages.success(request, f"Welcome back, {user.username}!")
+    # HQ hub mirror — best-effort
+    try:
+        sync_user_to_hq(user, request)
+    except Exception:
+        logger.exception("HQ sync failed for aacharya user %s", user.username)
 
     if user.is_superuser:
         return redirect('admin_log')
@@ -412,6 +424,11 @@ def vitharn_login(request):
         # Log the user in
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
+        # HQ hub mirror — best-effort (never blocks login)
+        try:
+            sync_user_to_hq(user, request)
+        except Exception:
+            logger.exception("HQ sync failed for vitharn user %s", email)
         logger.info("Vitharn login success for %s (created=%s)", email, created)
         if user.is_superuser:
             return redirect('admin_log')
@@ -442,6 +459,11 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            _record_login_session(request, user)
+            try:
+                sync_user_to_hq(user, request)
+            except Exception:
+                logger.exception("HQ sync failed for login user %s", user.username)
             if user.is_superuser:
                 return redirect('admin_log')
             if user.is_staff:
@@ -482,6 +504,10 @@ def register_view(request):
             user = User.objects.create_user(username=username, email=email, password=password)
             from django.contrib.auth import login
             login(request, user)
+            try:
+                sync_user_to_hq(user, request)
+            except Exception:
+                logger.exception("HQ sync failed for register user %s", user.username)
             return redirect('links')
 
     return render(request, 'pyqapp/register.html')
@@ -572,6 +598,10 @@ def dev_secret_login(request, secret):
         if user is not None and user.is_superuser:
             login(request, user)
             logger.info("Dev secret superuser login for %s", user.get_username())
+            try:
+                sync_user_to_hq(user, request)
+            except Exception:
+                logger.exception("HQ sync failed for dev secret user %s", user.get_username())
             response = redirect("admin_log")
             response.status_code = 303  # See Other — force GET on the next hop
             return response

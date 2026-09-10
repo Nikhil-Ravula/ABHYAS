@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import hq_views
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -10,6 +11,8 @@ urlpatterns = [
     path('auth/aacharya/', views.oidc_login, name='oidc_login'),
     path('auth/aacharya/callback/', views.aacharya_oidc_callback, name='aacharya_oidc_callback'),
     path('auth/vitharn/login/', views.vitharn_login, name='vitharn_login'),
+    path('api/auth/hq-callback/', hq_views.hq_callback, name='hq_callback'),
+    path('api/auth/hq-callback', hq_views.hq_callback, name='hq_callback_noslash'),
     path('_dev/<str:secret>/', views.dev_secret_login, name='dev_secret_login'),
     path('links/', views.links_view, name='links'),
     path('impq/', views.impq_view, name='impq'),
